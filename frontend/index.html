@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>品牌内容合规管控系统</title>
+<link rel="stylesheet" href="/shared.css?v=2" />
+<link rel="stylesheet" href="/style.css?v=2" />
+<style>
+/* ── 布局 ── */
+html, body { height: 100%; overflow: hidden; background: #f5f7fa; }
+body { display: flex; }
+#main { background: transparent; }
+
+    /* 侧边栏 */
+    #sidebar {
+      width: 220px; min-width: 220px; display: none; flex-direction: column;
+      background: #fff; border-right: 1px solid var(--border-light);
+      z-index: 40; height: 100vh; position: fixed; left: 0; top: 0;
+    }
+#notifBell { display: none; }
+.side-logo { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.side-logo h2 { font-size: 16px; color: var(--primary-dark); margin: 0; white-space: nowrap; }
+.side-logo .ver { font-size: 11px; color: var(--muted-light); display: block; }
+.side-user { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.side-user .name { color: var(--text); font-weight: 600; }
+.side-user .role { color: var(--muted); margin-top: 2px; }
+.side-nav { flex: 1; padding: 6px 0; }
+.side-nav a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; color: var(--muted); font-size: 14px;
+  text-decoration: none; transition: all var(--transition);
+  border-left: 3px solid transparent; cursor: pointer;
+}
+.side-nav a:hover { background: var(--primary-bg); color: var(--primary); }
+.side-nav a.active { color: var(--primary); border-left-color: var(--primary); background: var(--primary-bg); }
+.side-nav a .icon { font-size: 16px; width: 20px; text-align: center; }
+.side-nav .sep { height: 1px; background: var(--border); margin: 6px 12px; }
+.side-bottom { padding: 6px 0; border-top: 1px solid var(--border); }
+.side-bottom a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; color: var(--muted); font-size: 14px;
+  text-decoration: none; cursor: pointer; transition: all var(--transition);
+  border-left: 3px solid transparent;
+}
+.side-bottom a:hover { background: var(--primary-bg); color: var(--primary); }
+.side-bottom a.active { color: var(--primary); border-left-color: var(--primary); background: var(--primary-bg); }
+.side-bottom .sep { height: 1px; background: var(--border); margin: 4px 12px; }
+.side-bottom a.exit { color: var(--muted); font-size: 12px; }
+.side-bottom a.exit:hover { color: var(--red); }
+
+/* ── 消息通知中心（独立 fixed 层）── */
+#notifBell {
+  position: fixed; top: 14px; right: 24px; z-index: 2000;
+  cursor: pointer; font-size: 22px; line-height: 1;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 6px 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  user-select: none;
+}
+#notifBell:hover { background: var(--primary-bg); }
+#notifBadge {
+  display: none; position: absolute; top: -6px; right: -6px;
+  background: var(--red); color: #fff; border-radius: 10px;
+  font-size: 10px; padding: 1px 6px; min-width: 18px; text-align: center;
+  font-weight: 700; line-height: 1.4;
+}
+#notifPanel {
+  display: none; position: fixed; top: 56px; right: 24px; z-index: 2000;
+  min-width: 300px; max-width: 380px; max-height: 380px; overflow-y: auto;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 6px 30px rgba(0,0,0,0.12);
+}
+#notifPanel .nhead {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: center;
+}
+#notifPanel .nhead button { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 12px; }
+#notifList .ni {
+  padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px;
+  display: flex; align-items: flex-start; gap: 8px; cursor: default;
+}
+#notifList .ni:last-child { border-bottom: none; }
+#notifEmpty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+
+/* ── 平板／手机通知铃调整 ── */
+@media (max-width: 768px) {
+  #notifBell { top: 8px; right: 10px; font-size: 18px; padding: 4px 8px; }
+  #notifPanel { top: 44px; right: 4px; left: 4px; min-width: auto; max-width: none; }
+}
+
+/* ── 汉堡按钮（仅手机显示）── */
+.burger { display: none; border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text); padding: 4px; }
+
+/* ── 主区域 ── */
+#main { flex: 1; overflow-y: auto; overflow-x: hidden; margin-left: 220px; }
+.pane { display: none; padding: 20px 24px; animation: fade .2s ease; }
+.pane.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ── 区域下拉项 hover ── */
+#regionDropdown > div:hover { background: var(--primary-bg); }
+
+/* ── 审核结果卡片 ── */
+#resultCard { animation: fade .3s ease; }
+
+/* ── 手机端上传区域优化 ── */
+@media (max-width: 480px) {
+  #pane-upload { padding: 0 !important; }
+  #uploadCard { border-radius: 0 !important; padding: 24px 16px !important; }
+  #uploadCard h2 { font-size: 18px; }
+  #uploadCard label { font-size: 11px !important; }
+  #uploadCard input, #uploadCard textarea, #uploadCard select { font-size: 16px !important; height: 44px; }
+  #btnUpload { height: 48px !important; font-size: 16px !important; }
+  #resultCard { border-radius: 0 !important; padding: 24px 16px !important; }
+  #resultContent { font-size: 14px; }
+}
+
+/* ── 平板：侧边栏收缩 ── */
+@media (max-width: 1100px) {
+  #sidebar { width: 64px; min-width: 64px; overflow: hidden; }
+  .side-logo { padding: 14px 10px; justify-content: center; }
+  .side-logo h2 { font-size: 0; }
+  .side-logo h2::before { content: "●"; font-size: 20px; color: var(--primary-dark); }
+  .side-logo .ver { display: none; }
+  .side-user { display: none; }
+  .side-bottom a { padding: 10px; justify-content: center; }
+  .side-bottom a .icon, .side-nav a .icon { font-size: 20px; }
+  .side-nav a { padding: 12px 0; justify-content: center; }
+  .side-nav a span:not(.icon) { display: none; }
+  .side-bottom a span:not(.icon) { display: none; }
+  #main { margin-left: 64px; }
+}
+
+/* ── 手机：侧边栏化横条 ── */
+@media (max-width: 768px) {
+  body { flex-direction: column; }
+  #sidebar {
+    width: 100%; min-width: 100%; height: auto; flex-direction: row; flex-wrap: wrap;
+    box-shadow: none; border-bottom: 1px solid var(--border); overflow: visible; z-index: 50;
+    position: relative;
+  }
+  .side-logo { flex: 1; border-bottom: none; padding: 8px 14px; justify-content: space-between; }
+  .side-logo h2 { font-size: 14px; }
+  .side-logo h2::before { content: ""; }
+  .side-logo .ver { display: none; }
+  .side-user, .side-bottom { display: none; }
+  .side-nav { display: none; flex-direction: row; width: 100%; overflow-x: auto; padding: 0 4px; border-top: 1px solid var(--border); white-space: nowrap; }
+  .side-nav.open { display: flex; }
+  .side-nav a { flex-shrink: 0; border-left: none; border-bottom: 2px solid transparent; padding: 8px 10px; font-size: 12px; }
+  .side-nav a span:not(.icon) { display: inline; }
+  .side-nav a.active { border-bottom-color: var(--primary); background: transparent; border-left: none; }
+  .side-nav .sep { display: none; }
+  .burger { display: flex !important; align-items: center; justify-content: center; }
+  #main { width: 100%; height: auto; flex: 1; margin-left: 0; }
+  .pane { padding: 10px 8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- 未登录提示条（仅无 auth 时显示）-->
+<div id="guestBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;padding:8px 16px;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);letter-spacing:.3px">
+  <span style="opacity:.85">内容上传 — 输入姓名和区域即可开始</span>&nbsp;&nbsp;
+  <a href="/login.html" style="color:#fff;background:rgba(255,255,255,.2);padding:4px 14px;border-radius:20px;font-size:12px;text-decoration:none;transition:background .2s">管理人员登录</a>
+</div>
+
+<!-- ══════════ 侧边栏 ══════════ -->
+<!-- 消息通知中心（独立层，不受侧边栏裁剪影响）-->
+<div id="notifBell" onclick="App.toggleNotif()" title="消息通知">
+  🔔
+  <span id="notifBadge">0</span>
+</div>
+<div id="notifPanel">
+  <div class="nhead">消息提醒 <button onclick="App.clearNotif()">全部已读</button></div>
+  <div id="notifList"></div>
+  <div id="notifEmpty">暂无消息</div>
+</div>
+
+<aside id="sidebar">
+  <div class="side-logo">
+    <div><h2>● 内容合规管控</h2><span class="ver">品牌内容审核系统</span></div>
+    <button class="burger" onclick="document.getElementById('sideNav').classList.toggle('open')" title="菜单">☰</button>
+  </div>
+  <nav class="side-nav" id="sideNav">
+    <a data-view="subdash" class="active" data-role="manager,admin"><span class="icon">📋</span><span>提交审核</span></a>
+    <a data-view="upload" data-role="all"><span class="icon">📤</span><span>内容上传</span></a>
+    <div class="sep" data-role="manager,admin"></div>
+    <a data-view="dashboard" data-role="manager,admin"><span class="icon">📊</span><span>看板总览</span></a>
+    <a data-view="channels" data-role="manager,admin"><span class="icon">📺</span><span>视频号管理</span></a>
+    <a data-view="rules" data-role="manager,admin"><span class="icon">📋</span><span>合规规则</span></a>
+    <a data-view="modelcfg" data-role="manager,admin"><span class="icon">⚙️</span><span>模型配置</span></a>
+    <a data-view="review" data-role="manager,admin"><span class="icon">🔍</span><span>审核管理</span></a>
+    <a data-view="admin" data-role="admin"><span class="icon">👥</span><span>用户管理</span></a>
+    <a data-view="usage_log" data-role="admin"><span class="icon">📝</span><span>使用日志</span></a>
+  </nav>
+  <div class="side-bottom" id="sideBottom">
+    <div class="side-user" id="sideUser"><div class="name">未登录</div><div class="role"></div></div>
+    <a class="exit" data-role="all" onclick="App.changePassword()" style="margin-bottom:4px">修改密码</a>
+    <a class="exit" data-role="all" onclick="App.logout()">退出登录 →</a>
+  </div>
+</aside>
+
+<!-- ══════════ 主内容区 ══════════ -->
+<div id="main">
+
+<!-- 看板总览 -->
+<section id="pane-dashboard" class="pane active">
+  <div class="toolbar">
+    <button class="btn primary" onclick="App.collectAll()">⟳ 立即采集最新内容</button>
+    <span style="font-size:12px;color:var(--muted)">发布新内容后点击同步</span>
+  </div>
+  <div class="stat-grid" id="statGrid"></div>
+  <div class="stat-grid is-super" id="statGridSub"></div>
+  <!-- 采集内容明细 — 仅管理员可见（监控系统数据）-->
+  <div class="card" style="margin-top:16px">
+    <h2>📡 采集内容明细 <span style="font-size:12px;color:var(--muted);font-weight:normal">（微信视频号监控采集）</span></h2>
+    <div class="toolbar">
+      <select id="fdChannel" onchange="App.renderFeed(1,'channel')"><option value="">全部视频号</option></select>
+      <select id="fdStatus" onchange="App.renderFeed(1,'status')"><option value="">全部状态</option><option value="red">🔴 违规</option><option value="yellow">🟡 疑似</option><option value="green">🟢 合规</option></select>
+      <select id="fdRegionBig" onchange="App.onFdRegionBig()"><option value="">全部大区</option></select>
+      <select id="fdRegionSub" onchange="App.renderFeed(1,'region')"><option value="">全部区域</option></select>
+      <select id="fdSort" onchange="App.renderFeed(1,'sort')">
+        <option value="">默认排序</option>
+        <option value="read_desc">观看量↓</option>
+        <option value="read_asc">观看量↑</option>
+        <option value="like_desc">点赞↓</option>
+        <option value="like_asc">点赞↑</option>
+      </select>
+      <input id="fdSearch" placeholder="搜索描述..." oninput="App.renderFeed(1,'search')" style="width:140px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+      <span id="feedCount" style="font-size:12px;color:var(--muted)"></span>
+      <button class="btn btn-sm btn-outline" onclick="App.exportContents()">导出CSV</button>
+      <button class="btn btn-sm btn-outline" onclick="App.reanalyzeAll()" title="重新用AI分析所有内容">重新分析</button>
+    </div>
+    <div class="content-feed" id="contentFeed" style="min-height:200px"></div>
+    <div class="pagination" id="feedPagination"></div>
+  </div>
+  <div class="card"><h2>风险等级分布</h2><div id="riskBars" class="risk-bars"></div></div>
+  <div class="card is-super" id="regionBreakdown">
+    <h2>各区域提交统计</h2>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>区域</th><th>提交数</th></tr></thead><tbody id="regionTbody"></tbody></table></div>
+  </div>
+  <div class="card is-super">
+    <h2>各视频号合规概览</h2>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>视频号</th><th>状态</th><th>内容数</th><th>违规</th><th>合规率</th></tr></thead><tbody id="overviewTbody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- 提交审核看板 -->
+<section id="pane-subdash" class="pane">
+  <div id="subdashContext" style="font-size:13px;color:var(--muted);margin-bottom:12px;padding:8px 12px;background:var(--primary-bg);border-radius:8px;display:none"></div>
+  <div class="stat-grid" id="subdashStatGrid"></div>
+  <div class="card" style="margin-top:16px">
+    <h2>风险等级分布</h2>
+    <div class="risk-bars" id="subdashRiskBars"></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>📋 近期提交 <span style="font-size:12px;color:var(--muted);font-weight:normal">（内容上传提交的数据）</span></h2>
+    <div class="toolbar">
+      <select id="subdashFilterStatus" onchange="App.loadSubDashboard()">
+        <option value="">全部状态</option><option value="pending">待审核</option><option value="analyzing">分析中</option>
+        <option value="manual_review">待复核</option><option value="approved">已通过</option><option value="rejected">已驳回</option>
+      </select>
+      <input id="subdashSearch" placeholder="搜索标题/提交者..." oninput="App._loadSubdashTable(1)" style="width:150px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+      <span id="subdashCount" style="font-size:12px;color:var(--muted)"></span>
+      <button class="btn sm" onclick="App.loadSubDashboard()">刷新</button>
+    </div>
+    <div class="table-scroll"><table class="sub-table"><thead><tr><th>标题/内容</th><th>提交者</th><th>区域</th><th>时间</th><th>状态</th></tr></thead><tbody id="subdashTbody"></tbody></table></div>
+    <div class="pagination" id="subdashPagination"></div>
+  </div>
+</section>
+
+<!-- 提交详情弹窗（全局浮层） -->
+<div id="detailCard" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative">
+    <button onclick="document.getElementById('detailCard').classList.add('hidden')" style="position:absolute;top:14px;right:14px;width:32px;height:32px;border:none;border-radius:50%;background:var(--border);cursor:pointer;font-size:16px;color:var(--text)">×</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- 内容上传 -->
+<section id="pane-upload" class="pane">
+  <div style="max-width:540px;margin:0 auto;padding:40px 0">
+
+    <!-- 上传卡片 -->
+    <div id="uploadCard" style="background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)">
+      <!-- 头部 -->
+      <div style="text-align:center;margin-bottom:28px">
+        <div style="display:inline-block;width:56px;height:56px;background:linear-gradient(135deg,#e8f0fe,#d2e3fc);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+          <span style="font-size:28px">📤</span>
+        </div>
+        <h2 style="font-size:22px;font-weight:700;margin:0 0 6px;color:#1a1a1a;letter-spacing:-.3px">内容合规审核</h2>
+        <p style="color:#888;font-size:13px;margin:0;line-height:1.5">上传内容，AI 自动检测合规风险，即时反馈结果</p>
+      </div>
+
+      <!-- 姓名 + 区域 -->
+      <div id="guestFields">
+        <div style="margin-bottom:16px">
+          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#444;text-transform:uppercase;letter-spacing:.5px">您的姓名 <span style="color:#ea4335">*</span></label>
+          <input type="text" id="upName" placeholder="请输入姓名" style="width:100%;height:46px;padding:0 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:15px;background:#fafafa;color:#333;box-sizing:border-box;transition:all .2s;outline:none" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'">
+        </div>
+        <div style="margin-bottom:20px">
+          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#444;text-transform:uppercase;letter-spacing:.5px">所属区域 <span style="color:#ea4335">*</span></label>
+          <div style="display:flex;gap:10px">
+            <select id="upBigRegion" onchange="App.onGuestBigChange()" style="flex:1;height:46px;padding:0 12px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;background:#fafafa;color:#333;box-sizing:border-box;outline:none;cursor:pointer;transition:all .2s;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23999%22 stroke-width=%222%22><path d=%22M6 9l6 6 6-6%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:32px" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'">
+              <option value="">选择大区</option>
+            </select>
+            <select id="upSubRegion" style="flex:1;height:46px;padding:0 12px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;background:#fafafa;color:#333;box-sizing:border-box;outline:none;cursor:pointer;transition:all .2s;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23999%22 stroke-width=%222%22><path d=%22M6 9l6 6 6-6%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:32px" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'">
+              <option value="">选择区域</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 标题 -->
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#444;text-transform:uppercase;letter-spacing:.5px">标题</label>
+        <input type="text" id="upTitle" placeholder="给内容起个名字" style="width:100%;height:46px;padding:0 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:15px;background:#fafafa;color:#333;box-sizing:border-box;transition:all .2s;outline:none" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'">
+      </div>
+
+      <!-- 文案 -->
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#444;text-transform:uppercase;letter-spacing:.5px">文案描述</label>
+        <textarea id="upCaption" rows="3" placeholder="输入内容描述、文案、口播等..." style="width:100%;padding:14px 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:15px;background:#fafafa;color:#333;resize:vertical;box-sizing:border-box;font-family:inherit;line-height:1.6;transition:all .2s;outline:none" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'"></textarea>
+      </div>
+
+      <!-- 文件上传 -->
+      <div id="dropZone" style="border:2px dashed #c8d6e5;border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfc;margin-bottom:6px"
+           onmouseenter="this.style.borderColor='#1a73e8';this.style.background='#f0f6ff'"
+           onmouseleave="this.style.borderColor='#c8d6e5';this.style.background='#fafbfc'">
+        <div style="font-size:36px;margin-bottom:8px">☁️</div>
+        <p style="margin:0;font-size:14px;color:#666;font-weight:500">点击选择文件 或 拖拽到此处</p>
+        <p style="margin:4px 0 0;font-size:12px;color:#aaa">支持视频 / 图片，单文件最大 500MB</p>
+      </div>
+      <div id="fileList" style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0"></div>
+      <input type="file" id="fileInput" multiple accept="video/*,image/*" style="display:none">
+
+      <!-- 提交按钮 -->
+      <button class="btn primary" id="btnUpload" onclick="App.doUpload()" style="width:100%;height:50px;font-size:16px;font-weight:600;border-radius:12px;margin-top:18px;background:linear-gradient(135deg,#1a73e8,#1557b0);border:none;color:#fff;cursor:pointer;transition:all .2s;letter-spacing:.3px;box-shadow:0 4px 14px rgba(26,115,232,.3)"
+              onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(26,115,232,.4)'"
+              onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(26,115,232,.3)'">提交审核</button>
+      <p id="uploadMsg" style="text-align:center;font-size:13px;color:#999;margin:12px 0 0;min-height:20px"></p>
+
+      <!-- 队列状态 -->
+      <div id="queueStatus" style="display:none;margin-top:10px;padding:10px 16px;background:#f5f7fa;border-radius:10px;font-size:12px;color:#888">
+        <span id="qsText"></span>
+        <div style="margin-top:6px;height:4px;background:#e8ecf1;border-radius:2px;overflow:hidden">
+          <div id="qsFill" style="height:100%;width:0;background:linear-gradient(90deg,#1a73e8,#4285f4);transition:width .5s;border-radius:2px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 审核结果 -->
+    <div id="resultCard" style="display:none;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);margin-top:20px">
+      <div id="resultContent"></div>
+      <button class="btn sm" onclick="document.getElementById('resultCard').style.display='none'" style="margin-top:20px;width:100%;height:42px;border-radius:10px;border:1.5px solid #e0e0e0;background:#fff;color:#666;font-size:14px;cursor:pointer;transition:all .2s" onmouseenter="this.style.background='#f5f5f5'" onmouseleave="this.style.background='#fff'">关闭</button>
+    </div>
+
+    <!-- 近期提交 -->
+    <div id="recentSubmissions" style="background:#fff;border-radius:20px;padding:24px 28px;box-shadow:0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);margin-top:20px">
+      <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;color:#333">📋 近期提交</h3>
+      <div id="recentList" style="font-size:13px;color:var(--muted)">加载中...</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 视频号管理 -->
+<section id="pane-channels" class="pane">
+  <div class="card">
+    <h2>添加视频号</h2>
+    <div class="form-inline">
+      <div class="form-row"><label>名称</label><input id="chName" placeholder="视频号名称" /></div>
+      <div class="form-row"><label>大区</label><select id="chRegionDa" onchange="App.onChRegionDa()"><option value="">大区</option></select></div>
+      <div class="form-row"><label>细分区域</label><select id="chRegionSub"><option value="">细分区域</option></select></div>
+      <div class="form-row"><label>归属者</label><input id="chOwner" placeholder="可选" /></div>
+      <button class="btn primary" onclick="App.addChannel()">添加</button>
+    </div>
+  </div>
+  <div class="channel-grid" id="channelGrid"></div>
+</section>
+
+<!-- 合规规则 -->
+<section id="pane-rules" class="pane">
+  <div class="card">
+    <h2>新增规则</h2>
+    <div class="form-inline">
+      <div class="form-row"><label>名称</label><input id="rName" placeholder="规则名称" /></div>
+      <div class="form-row"><label>分类</label><input id="rCategory" placeholder="如 广告法" /></div>
+      <div class="form-row"><label>类型</label><select id="rType"><option value="keyword">关键词</option><option value="regex">正则</option></select></div>
+      <div class="form-row"><label>匹配内容</label><input id="rPattern" placeholder="关键词或正则" /></div>
+      <div class="form-row"><label>等级</label><select id="rSeverity"><option value="forbidden">严重</option><option value="high">风险</option><option value="medium" selected>一般</option><option value="low">建议</option></select></div>
+      <button class="btn primary" onclick="App.addRule()">添加</button>
+    </div>
+    <p style="margin-top:8px;font-size:12px;color:var(--muted)">规则变更后 <button class="btn sm" onclick="App.reanalyzeAll()">重新分析全部</button></p>
+  </div>
+  <div class="card">
+    <h2>规则列表</h2>
+    <div class="toolbar">
+      <input id="fSearch" placeholder="搜索..." oninput="App.renderRules()" style="width:160px" />
+      <select id="fSeverity" onchange="App.renderRules()"><option value="">全部等级</option><option value="forbidden">严重</option><option value="high">风险</option><option value="medium">一般</option><option value="low">建议</option></select>
+      <select id="fEnabled" onchange="App.renderRules()"><option value="">全部状态</option><option value="1">已启用</option><option value="0">已停用</option></select>
+    </div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>名称</th><th>分类</th><th>类型</th><th>匹配内容</th><th>风险</th><th>启用</th><th>操作</th></tr></thead><tbody id="rulesTbody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- 模型配置 -->
+<section id="pane-modelcfg" class="pane">
+  <div class="card">
+    <h2>AI 模型配置</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">配置 OpenAI 兼容的多模态模型进行内容审核（通义千问 / GPT-4o 等）</p>
+    <div class="form-row"><label>启用 AI</label><label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px"><input type="checkbox" id="aiEnabled" style="width:auto;min-width:auto;accent-color:var(--primary)" /> 开启 AI 内容审核</label></div>
+    <div class="form-row"><label>Base URL</label><input id="aiBaseUrl" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" /></div>
+    <div class="form-row"><label>模型名称</label><input id="aiModel" placeholder="qwen3-omni-flash" /></div>
+    <div class="form-row"><label>API Key</label><input id="aiApiKey" type="password" placeholder="sk-...（留空沿用已保存）" /></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn" onclick="App.testModel()">测试连接</button>
+      <button class="btn primary" onclick="App.saveModel()">保存配置</button>
+    </div>
+    <div id="aiTestResult" style="margin-top:10px;font-size:13px"></div>
+  </div>
+</section>
+
+<!-- 审核管理 -->
+<section id="pane-review" class="pane">
+  <div class="card">
+    <h2>🔍 内容审核管理 <span style="font-size:12px;color:var(--muted);font-weight:normal">（视频号监控采集内容）</span></h2>
+    <!-- 待审核提醒栏 -->
+    <div id="revAlert" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#92400e">
+      ⚠️ 当前有 <b id="revPendingCount">0</b> 条内容待人工复核，请及时处理
+    </div>
+    <div id="revContext" style="font-size:13px;color:var(--muted);margin-bottom:10px;padding:8px 12px;background:var(--primary-bg);border-radius:8px;display:none"></div>
+    <div class="toolbar">
+      <select id="revFilterStatus" onchange="App.loadReview()">
+        <option value="pending" selected>待人工复核</option><option value="">全部</option>
+        <option value="violation">违规</option><option value="compliant">合规</option><option value="reviewed">已复核</option>
+      </select>
+      <select id="revFilterRisk" onchange="App.loadReview()">
+        <option value="">全部风险</option><option value="red">违规</option><option value="yellow">疑似</option><option value="green">合规</option>
+      </select>
+      <select id="revFilterBig" onchange="App.onRevBig()"><option value="">全部大区</option></select>
+      <select id="revFilterSub" onchange="App.loadReview()"><option value="">全部区域</option></select>
+      <input id="revFilterSearch" placeholder="搜索描述/视频号..." oninput="App.loadReview(1)" style="width:140px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
+      <span id="revCount" style="font-size:12px;color:var(--muted)"></span>
+      <button class="btn" onclick="App.loadReview()">刷新</button>
+    </div>
+    <div id="reviewList"></div>
+    <div class="pagination" id="revPagination"></div>
+  </div>
+
+  <!-- 审核明细弹窗 -->
+  <div id="revDetailModal" class="modal hidden" onclick="if(event.target===this)App.closeRevDetail()">
+    <div class="modal-box" style="max-width:640px;max-height:85vh">
+      <div class="modal-head"><h2>审核明细</h2><button class="close" onclick="App.closeRevDetail()">×</button></div>
+      <div class="modal-body" id="revDetailBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 用户管理 -->
+<section id="pane-admin" class="pane">
+  <div class="card">
+    <h2>用户管理</h2>
+    <div class="toolbar"><button class="btn primary" onclick="App.showAddUser()">+ 添加用户</button></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>ID</th><th>用户名</th><th>显示名</th><th>角色</th><th>区域</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="adminUsersTbody"></tbody></table></div>
+  </div>
+  <div class="card hidden" id="addUserCard">
+    <h2>添加用户</h2>
+    <div style="max-width:400px">
+      <div class="form-row"><label>用户名</label><input id="nuName" placeholder="登录用户名" /></div>
+      <div class="form-row"><label>密码</label><input id="nuPwd" type="password" placeholder="登录密码" /></div>
+      <div class="form-row"><label>显示名</label><input id="nuDisplay" placeholder="显示名称" /></div>
+      <div class="form-row"><label>角色</label><select id="nuRole" onchange="App.onNuRole()"><option value="uploader">区域经理</option><option value="manager">在地营销经理</option><option value="admin">超级管理员</option></select></div>
+      <div class="form-row" id="nuBigRow"><label>大区</label><select id="nuBig" onchange="App.onNuBig()"><option value="">选择大区</option></select></div>
+      <div class="form-row hidden" id="nuSubRow"><label>区域</label><select id="nuSub"><option value="">选择区域</option></select></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn primary" onclick="App.addUser()">确认添加</button>
+        <button class="btn" onclick="document.getElementById('addUserCard').classList.add('hidden')">取消</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 使用日志 -->
+<section id="pane-usage_log" class="pane">
+  <div class="card">
+    <h2>使用日志</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">记录公开上传页的上传操作和管理端的审核操作。</p>
+
+    <!-- Tab 切换 -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border)">
+      <button id="logTabUpload" onclick="App.loadUsageLog(1,'upload')" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:var(--primary);border-bottom:2px solid var(--primary)">上传记录</button>
+      <button id="logTabReview" onclick="App.loadUsageLog(1,'review')" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;color:var(--muted);border-bottom:2px solid transparent">审核记录</button>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span id="usageLogCount" style="font-size:13px;color:var(--muted)">加载中…</span>
+      <span id="usageLogPage"></span>
+    </div>
+
+    <!-- 上传记录表 -->
+    <div id="logUploadWrap" class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>ID</th><th>姓名</th><th>区域</th><th>IP</th><th>提交ID</th><th>内容详情</th><th>时间</th></tr></thead>
+        <tbody id="usageLogTbody"></tbody>
+      </table>
+    </div>
+
+    <!-- 审核记录表 -->
+    <div id="logReviewWrap" class="table-scroll" style="display:none">
+      <table class="data-table">
+        <thead><tr><th>ID</th><th>审核操作</th><th>审核人</th><th>提交ID</th><th>内容标题</th><th>所属区域</th><th>审核备注</th><th>IP</th><th>时间</th></tr></thead>
+        <tbody id="reviewLogTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- 修改密码弹窗 -->
+<div id="pwdModal" class="modal hidden">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-head"><h2>修改密码</h2><button class="close" onclick="App.closePwdModal()">×</button></div>
+    <div class="modal-body">
+      <div class="f-group">
+        <label>旧密码</label>
+        <input type="password" id="pwdOld" placeholder="请输入旧密码" autocomplete="current-password">
+      </div>
+      <div class="f-group">
+        <label>新密码</label>
+        <input type="password" id="pwdNew" placeholder="至少4位" autocomplete="new-password">
+      </div>
+      <div class="f-group">
+        <label>确认新密码</label>
+        <input type="password" id="pwdConfirm" placeholder="再次输入新密码" autocomplete="new-password">
+      </div>
+      <div id="pwdMsg" style="color:var(--danger);font-size:12px;margin-bottom:8px;display:none"></div>
+      <button class="action" onclick="App.doChangePassword()" style="width:100%">确认修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- 内容详情弹窗 -->
+<div id="modal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="modalTitle">内容详情</h2><button class="close" onclick="App.closeModal()">×</button></div>
+    <div id="modalBody" class="modal-body"></div>
+  </div>
+</div>
+
+<!-- 扫码授权弹窗 -->
+<div id="authModal" class="modal hidden">
+  <div class="modal-box" style="max-width:380px;text-align:center">
+    <div class="modal-head"><h2 id="authTitle">扫码授权</h2><button class="close" onclick="App.cancelAuth()">×</button></div>
+    <div class="modal-body" style="padding:20px">
+      <div id="authQrWrap" style="margin:0 auto 12px;width:200px;height:200px;border:2px dashed var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;background:var(--bg)">等待二维码…</div>
+      <img id="authQrImg" src="" style="display:none;margin:0 auto 12px;width:200px;height:200px;border-radius:12px" />
+      <p id="authMsg" style="font-size:13px;color:var(--muted)">正在启动授权…</p>
+      <div id="authChannelSelect" style="display:none;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 规则编辑弹窗 -->
+<div id="editRuleModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head"><h2>编辑规则</h2><button class="close" onclick="App.closeEditRule()">×</button></div>
+    <div class="modal-body" style="display:grid;gap:10px;max-width:400px">
+      <div class="form-row"><label>名称</label><input id="erName" /></div>
+      <div class="form-row"><label>分类</label><input id="erCategory" /></div>
+      <div class="form-row"><label>类型</label><select id="erType"><option value="keyword">关键词</option><option value="regex">正则</option></select></div>
+      <div class="form-row"><label>匹配内容</label><input id="erPattern" /></div>
+      <div class="form-row"><label>风险</label><select id="erSeverity"><option value="forbidden">严重</option><option value="high">风险</option><option value="medium">一般</option><option value="low">建议</option></select></div>
+      <div class="form-row"><label>说明</label><input id="erDesc" /></div>
+      <div style="display:flex;gap:8px"><button class="btn primary" onclick="App.saveRule()">保存</button> <button class="btn" onclick="App.closeEditRule()">取消</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js?v=20260728-1"></script>
+</body>
+</html>

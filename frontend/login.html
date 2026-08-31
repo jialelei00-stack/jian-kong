@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>合规管控系统 - 登录</title>
+  <link rel="stylesheet" href="/shared.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-box {
+      background: #fff; border: 1px solid var(--border); border-radius: 16px;
+      padding: 40px; width: 400px; max-width: 94vw;
+      box-shadow: var(--shadow-lg);
+    }
+    h1 { text-align: center; font-size: 22px; margin-bottom: 4px; color: var(--text); font-weight: 700; }
+    .subtitle { text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
+    .tab-row { display: flex; gap: 0; margin-bottom: 24px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+    .tab-row button { flex: 1; padding: 10px; border: none; background: none; font-size: 14px; cursor: pointer; color: var(--text-muted); font-family: inherit; font-weight: 500; transition: .15s; }
+    .tab-row button.active { background: var(--brand); color: #fff; font-weight: 600; }
+    .error-msg { color: var(--red); font-size: 13px; text-align: center; margin-top: 14px; min-height: 20px; }
+    .login-box .btn { width: 100%; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="login-box">
+  <h1>品牌内容合规管控</h1>
+  <p class="subtitle">内容审核 · 区域协作 · 智能分析</p>
+  <div class="tab-row">
+    <button id="tabLogin" class="active" onclick="switchTab('login')">登录</button>
+    <button id="tabRegister" onclick="switchTab('register')">注册</button>
+  </div>
+
+  <!-- 登录表单 -->
+  <form id="formLogin" onsubmit="doLogin(event)">
+    <div class="form-group"><label>用户名</label><input type="text" id="loginUser" required autocomplete="username" /></div>
+    <div class="form-group"><label>密码</label><input type="password" id="loginPwd" required autocomplete="current-password" /></div>
+    <button type="submit" class="btn btn-primary" id="btnLogin">登 录</button>
+  </form>
+
+  <!-- 注册表单 -->
+  <form id="formRegister" class="hidden" onsubmit="doRegister(event)">
+    <div class="form-group"><label>用户名</label><input type="text" id="regUser" required /></div>
+    <div class="form-group"><label>密码（至少4位）</label><input type="password" id="regPwd" required minlength="4" /></div>
+    <div class="form-group"><label>显示名称</label><input type="text" id="regName" placeholder="可选" /></div>
+    <div class="form-group"><label>所属大区</label><select id="regBigRegion" onchange="onBigRegionChange()"><option value="">请选择大区</option></select></div>
+    <div class="form-group"><label>细分区域</label><select id="regSubRegion"><option value="">请先选择大区</option></select></div>
+    <button type="submit" class="btn btn-primary" id="btnRegister">注 册</button>
+  </form>
+
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<script>
+const API = (path, opts = {}) => fetch(path, { credentials: "same-origin", ...opts }).then(r => r.json().then(d => ({ ok: r.ok, status: r.status, data: d })));
+
+let regions = {};
+let currentTab = "login";
+
+async function loadRegions() {
+  const { data } = await API("/api/regions");
+  if (data) {
+    regions = data;
+    const sel = document.getElementById("regBigRegion");
+    for (const big of Object.keys(regions)) {
+      const opt = document.createElement("option");
+      opt.value = big; opt.textContent = big;
+      sel.appendChild(opt);
+    }
+  }
+}
+
+function onBigRegionChange() {
+  const big = document.getElementById("regBigRegion").value;
+  const sub = document.getElementById("regSubRegion");
+  sub.innerHTML = '<option value="">请选择细分区域</option>';
+  if (big && regions[big]) {
+    for (const s of regions[big]) {
+      const opt = document.createElement("option");
+      opt.value = big + "/" + s; opt.textContent = s;
+      sub.appendChild(opt);
+    }
+  }
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById("tabLogin").classList.toggle("active", tab === "login");
+  document.getElementById("tabRegister").classList.toggle("active", tab === "register");
+  document.getElementById("formLogin").classList.toggle("hidden", tab !== "login");
+  document.getElementById("formRegister").classList.toggle("hidden", tab !== "register");
+  document.getElementById("errorMsg").textContent = "";
+}
+
+function showError(msg) { document.getElementById("errorMsg").textContent = msg; }
+
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById("btnLogin");
+  btn.disabled = true; btn.textContent = "登录中...";
+  showError("");
+  const { ok, data } = await API("/api/auth/login", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: document.getElementById("loginUser").value.trim(),
+      password: document.getElementById("loginPwd").value,
+    }),
+  });
+  if (ok && data.ok) {
+    window.location.href = "/manager";
+  } else {
+    showError((data && data.detail) || "登录失败，请检查用户名和密码");
+    btn.disabled = false; btn.textContent = "登 录";
+  }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  const btn = document.getElementById("btnRegister");
+  btn.disabled = true; btn.textContent = "注册中...";
+  showError("");
+  const region = document.getElementById("regSubRegion").value;
+  if (!region) { showError("请选择所属区域"); btn.disabled = false; btn.textContent = "注 册"; return; }
+  const { ok, data } = await API("/api/auth/register", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: document.getElementById("regUser").value.trim(),
+      password: document.getElementById("regPwd").value,
+      display_name: document.getElementById("regName").value.trim(),
+      region: region,
+    }),
+  });
+  if (ok && data.ok) {
+    window.location.href = "/manager";
+  } else {
+    showError((data && data.detail) || "注册失败");
+    btn.disabled = false; btn.textContent = "注 册";
+  }
+}
+
+loadRegions();
+</script>
+</body>
+</html>

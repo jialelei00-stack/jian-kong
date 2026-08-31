@@ -1,0 +1,13 @@
+# 核心后端依赖（必装）
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.6
+cos-python-sdk-v5>=1.9.0
+
+# 内容采集依赖（仅在使用 Appium 真机采集时需要安装）
+# Appium-Python-Client==4.0.0
+
+# 内容提取依赖（仅在启用 OCR / 语音转写时需要安装，体积较大，按需安装）
+# paddlepaddle
+# paddleocr
+# openai-whisper

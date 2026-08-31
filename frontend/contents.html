@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>采集内容列表</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f5f0e8; color: #3d3226; padding: 20px; }
+  h1 { margin-bottom: 16px; font-size: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); cursor: pointer; transition: box-shadow .15s; }
+  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+  .card img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .card .body { padding: 10px 12px; }
+  .card .caption { font-size: 14px; line-height: 1.4; margin-bottom: 6px; word-break: break-all; }
+  .card .meta { font-size: 12px; color: #8b7355; display: flex; gap: 12px; }
+  .detail { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; }
+  .detail.open { display: flex; }
+  .detail-box { background: #fff; border-radius: 16px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px; }
+  .detail-box img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
+  .back { display: inline-block; margin-bottom: 12px; color: #4482bb; text-decoration: none; font-size: 13px; }
+  .empty { text-align: center; padding: 60px 20px; color: #8b7355; }
+  .empty a { color: #4482bb; }
+</style>
+</head>
+<body>
+
+<h1>📺 采集内容列表 （共 <span id="cnt">0</span> 条）</h1>
+<a class="back" href="/manager">← 返回主页</a>
+<div class="grid" id="grid"></div>
+
+<div class="detail" id="detail" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="detail-box" id="detailBox"></div>
+</div>
+
+<script>
+async function load() {
+  try {
+    const r = await fetch("/api/contents/all?page_size=50", { credentials: "same-origin" });
+    const data = await r.json();
+    if (!r.ok) { document.getElementById("grid").innerHTML = `<div class="empty">需要登录，请先 <a href="/login.html">登录</a></div>`; return; }
+    document.getElementById("cnt").textContent = data.total || 0;
+    const items = data.items || [];
+    if (!items.length) { document.getElementById("grid").innerHTML = `<div class="empty">暂无采集内容，请先到 <a href="/manager">视频号管理</a> 中授权并采集</div>`; return; }
+
+    document.getElementById("grid").innerHTML = items.map(c => `
+      <div class="card" onclick="showDetail(${c.id})">
+        ${c.thumb_url ? `<img src="${esc(c.thumb_url)}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22180%22><rect fill=%22%23e8e0d0%22 width=%22260%22 height=%22180%22/><text x=%22130%22 y=%2290%22 text-anchor=%22middle%22 fill=%22%238b7355%22 font-size=%2232%22>${c.is_video?'🎬':'📄'}</text></svg>'">` : `<div style="height:180px;background:#e8e0d0;display:flex;align-items:center;justify-content:center;font-size:40px">${c.is_video?'🎬':'📄'}</div>`}
+        <div class="body">
+          <div class="caption">${esc(c.caption || c.title || "(无内容)")}</div>
+          <div class="meta">
+            <span>${c.channel_name || ""}</span>
+            <span>👁 ${(c.stats||{}).read || 0}</span>
+            <span>❤ ${(c.stats||{}).like || 0}</span>
+          </div>
+        </div>
+      </div>`).join("");
+  } catch(e) {
+    document.getElementById("grid").innerHTML = `<div class="empty">加载失败: ${esc(e.message)}</div>`;
+  }
+}
+
+async function showDetail(id) {
+  const r = await fetch(`/api/contents/${id}`, { credentials: "same-origin" });
+  const d = await r.json();
+  const ai = d.ai_review || {};
+  const stats = d.stats || {};
+  const media = d.media || [];
+  const rules = d.matched_rules || [];
+
+  let mediaHTML = "";
+  media.forEach(m => {
+    if (m.is_video) {
+      const vSrc = m.video_local || `/api/video_proxy/${d.id}`;
+      mediaHTML += `<video controls preload="metadata" src="${esc(vSrc)}" style="max-width:100%;max-height:360px;border-radius:8px;margin:4px" onerror="this.style.display='none'"></video>`;
+    } else if (m.thumb) mediaHTML += `<img src="${esc(m.thumb)}" style="max-width:200px;border-radius:8px;margin:4px" />`;
+  });
+
+  document.getElementById("detailBox").innerHTML = `
+    <b>视频号:</b> ${esc(d.channel_name || "")} · ${d.publish_time || "未知"}<br>
+    ${mediaHTML}
+    <p style="margin:8px 0"><b>文案:</b> ${esc(d.caption || d.title || "-")}</p>
+    ${d.ocr_text ? `<p><b>画面文字:</b> ${esc(d.ocr_text)}</p>` : ""}
+    ${d.transcript ? `<p><b>语音:</b> ${esc(d.transcript)}</p>` : ""}
+    <p style="font-size:13px;color:#8b7355">👁${stats.read||0} ❤${stats.like||0} 💬${stats.comment||0} 🔄${stats.forward||0} ⭐${stats.fav||0}</p>
+    ${ai.interpretation ? `<div style="background:#f8f5f0;padding:10px;border-radius:8px;margin:8px 0"><b>🤖 AI 解读:</b><br>${esc(ai.interpretation)}</div>` : ""}
+    ${ai.conclusion ? `<p><b>AI 结论:</b> ${esc(ai.conclusion)}</p>` : ""}
+    ${!ai.used && !ai.error ? `<p style="color:#8b7355;font-size:12px">⏳ AI 分析尚未完成，可到主页查看</p>` : ""}
+    ${rules.length ? `<b>命中规则:</b>${rules.map(r => `<div style="font-size:13px;padding:2px 0">[${r.severity}] ${esc(r.rule_name)}: ${esc(r.matched_text || "")}</div>`).join("")}` : ""}`;
+  document.getElementById("detail").classList.add("open");
+}
+
+function esc(s) { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+load();
+</script>
+</body>
+</html>

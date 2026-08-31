@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>内容上传 - 合规管控</title>
+<link rel="stylesheet" href="/shared.css?v=2">
+<link rel="stylesheet" href="/style.css?v=2">
+<style>
+  .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+  .upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: .2s; margin-bottom: 14px; }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(34,211,238,0.04); }
+  .upload-zone p { color: var(--muted); font-size: 14px; }
+  .upload-zone .icon { font-size: 40px; margin-bottom: 10px; }
+  .file-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .file-tag { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .file-tag .rm { cursor: pointer; color: var(--muted); font-weight: bold; }
+  .file-tag .rm:hover { color: var(--red); }
+  .progress-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .progress-bar .fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s; width: 0; }
+  .result-card { padding: 16px; border-radius: 10px; margin-bottom: 10px; }
+  .result-card.approved { border: 1px solid var(--green); background: rgba(16,185,129,0.08); }
+  .result-card.rejected { border: 1px solid var(--red); background: rgba(239,68,68,0.08); }
+  .result-card.manual_review { border: 1px solid var(--yellow); background: rgba(245,158,11,0.08); }
+  .result-card.pending, .result-card.analyzing { border: 1px solid var(--border); background: rgba(148,163,184,0.05); }
+  .result-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .rule-list { margin-top: 10px; font-size: 13px; }
+  .rule-item { padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .rule-item:last-child { border-bottom: none; }
+  .empty { text-align: center; color: var(--muted); padding: 40px; }
+  .sub-list { max-height: 500px; overflow-y: auto; }
+  .sub-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--border); gap: 12px; }
+  .sub-item:last-child { border-bottom: none; }
+  .sub-item .info { flex: 1; min-width: 0; }
+  .sub-item .title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub-item .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .sub-item .status-badge { flex-shrink: 0; }
+  .badge-gray { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: var(--text-muted); background: #f5f0e8; }
+  .pagination { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+  .pagination button { padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); cursor: pointer; font-size: 13px; }
+  .pagination button:hover { border-color: var(--accent); }
+  .pagination button:disabled { opacity: 0.4; }
+  .filter-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .filter-row select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 13px; }
+  .hidden { display: none; }
+  .card h3 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 14px; }
+
+  /* ── 手机适配 ── */
+  @media (max-width: 768px) {
+    .container { padding: 10px; }
+    .upload-zone { padding: 24px 14px; }
+    .upload-zone p { font-size: 13px; }
+    .upload-zone .icon { font-size: 32px; }
+    .filter-row { flex-direction: column; gap: 8px; }
+    .filter-row select { width: 100%; }
+    .sub-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .sub-item .title { white-space: normal; }
+    .sub-list { max-height: 400px; }
+    .pagination button { font-size: 12px; padding: 5px 10px; }
+    .result-card { padding: 12px; }
+  }
+  @media (max-width: 480px) {
+    .container { padding: 8px; }
+    .upload-zone { padding: 18px 8px; }
+    .upload-zone p { font-size: 12px; }
+    .card { padding: 12px 10px; }
+    .file-tag { font-size: 11px; padding: 4px 7px; }
+    .pagination { gap: 4px; }
+    .pagination button { font-size: 11px; padding: 4px 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h2>📤 内容上传审核</h2>
+  <div>
+    <span class="user-info" id="userInfo">加载中...</span>
+    <a href="/manager" style="margin-left:16px">管理后台</a>
+  </div>
+</div>
+
+<div class="container">
+  <!-- 上传区域 -->
+  <div class="card">
+    <h3>上传内容</h3>
+    <div class="form-row"><label>标题</label><input type="text" id="title" placeholder="可选" /></div>
+    <div class="form-row"><label>文案描述</label><textarea id="caption" placeholder="输入内容描述文字..."></textarea></div>
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📁</div>
+      <p>点击选择文件 或 拖拽到这里（视频 / 图片）</p>
+    </div>
+    <input type="file" id="fileInput" multiple accept="video/*,image/*" style="display:none" onchange="onFilesSelected(this.files)" />
+    <div class="file-list" id="fileList"></div>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="btnUpload" onclick="doUpload()">提交审核</button>
+    </div>
+    <div class="progress-bar hidden" id="progressBar"><div class="fill" id="progressFill"></div></div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px" id="uploadMsg"></p>
+  </div>
+
+  <!-- 我的提交列表 -->
+  <div class="card">
+    <h3 id="listTitle">我的提交</h3>
+    <div class="filter-row">
+      <select id="filterStatus" onchange="loadSubmissions()">
+        <option value="">全部状态</option>
+        <option value="pending">待审核</option>
+        <option value="analyzing">分析中</option>
+        <option value="approved">已通过</option>
+        <option value="rejected">已驳回</option>
+        <option value="manual_review">待人工复核</option>
+      </select>
+    </div>
+    <div class="sub-list" id="subList"><div class="empty">加载中...</div></div>
+    <div class="pagination" id="subPagination"></div>
+  </div>
+
+  <!-- 审核详情弹窗 -->
+  <div class="card hidden" id="detailCard">
+    <h3>审核详情 <button class="btn" style="font-size:12px;float:right" onclick="document.getElementById('detailCard').classList.add('hidden')">关闭</button></h3>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+const API = (path, opts = {}) => fetch(path, { credentials: "same-origin", ...opts }).then(async r => {
+  const data = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, data };
+});
+
+let selectedFiles = [];
+let currentUser = null;
+let subPage = 1;
+
+// ── 初始化 ──
+(async function init() {
+  const { ok, data } = await API("/api/auth/me");
+  if (ok && data.id) {
+    currentUser = data;
+    document.getElementById("userInfo").textContent = `${data.display_name || data.username} (${data.role === "admin" ? "管理员" : data.role === "manager" ? "在地营销经理" : "区域经理"})`;
+    if (data.role === "admin" || data.role === "manager") {
+      document.getElementById("listTitle").textContent = "全部提交";
+    }
+  }
+  loadSubmissions();
+  setupDragDrop();
+})();
+
+function setupDragDrop() {
+  const zone = document.getElementById("dropZone");
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.style.borderColor = "var(--accent)"; });
+  zone.addEventListener("dragleave", () => { zone.style.borderColor = "var(--border)"; });
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+    zone.style.borderColor = "var(--border)";
+    onFilesSelected(e.dataTransfer.files);
+  });
+}
+
+function onFilesSelected(fileList) {
+  for (const f of fileList) {
+    if (!selectedFiles.find(sf => sf.name === f.name && sf.size === f.size)) {
+      selectedFiles.push(f);
+    }
+  }
+  renderFileList();
+}
+
+function renderFileList() {
+  const container = document.getElementById("fileList");
+  container.innerHTML = selectedFiles.map((f, i) =>
+    `<span class="file-tag">${f.name} (${(f.size/1024/1024).toFixed(1)}MB) <span class="rm" onclick="removeFile(${i})">&times;</span></span>`
+  ).join("");
+}
+
+function removeFile(i) { selectedFiles.splice(i, 1); renderFileList(); }
+
+async function doUpload() {
+  const caption = document.getElementById("caption").value.trim();
+  if (!selectedFiles.length && !caption) { alert("请上传文件或填写文案"); return; }
+
+  const btn = document.getElementById("btnUpload");
+  btn.disabled = true; btn.textContent = "上传中...";
+  const bar = document.getElementById("progressBar");
+  const fill = document.getElementById("progressFill");
+  const msg = document.getElementById("uploadMsg");
+  bar.classList.remove("hidden");
+  fill.style.width = "30%";
+  msg.textContent = "正在上传...";
+
+  const form = new FormData();
+  form.append("title", document.getElementById("title").value.trim());
+  form.append("caption", caption);
+  for (const f of selectedFiles) form.append("files", f);
+
+  try {
+    const { ok, data } = await API("/api/submissions/upload", { method: "POST", body: form });
+    fill.style.width = "100%";
+    if (ok && data.ok) {
+      msg.textContent = `提交成功！ID: ${data.submission_id}，队列位置: ${data.queue_position}`;
+      selectedFiles = [];
+      renderFileList();
+      document.getElementById("title").value = "";
+      document.getElementById("caption").value = "";
+      loadSubmissions();
+      // 轮询审核结果
+      pollResult(data.submission_id);
+    } else {
+      msg.textContent = "上传失败: " + ((data && data.detail) || "未知错误");
+      msg.style.color = "var(--red)";
+    }
+  } catch (e) {
+    msg.textContent = "网络错误: " + e.message;
+    msg.style.color = "var(--red)";
+  }
+  btn.disabled = false; btn.textContent = "提交审核";
+  setTimeout(() => { bar.classList.add("hidden"); fill.style.width = "0"; msg.style.color = "var(--muted)"; }, 2000);
+}
+
+async function pollResult(subId, attempts = 0) {
+  if (attempts > 30) return; // 最多轮询 30 次（约 1 分钟）
+  await new Promise(r => setTimeout(r, 2000));
+  const { ok, data } = await API(`/api/submissions/${subId}`);
+  if (ok && data && data.status !== "pending" && data.status !== "analyzing") {
+    loadSubmissions(); // 刷新列表
+  } else if (attempts < 30) {
+    pollResult(subId, attempts + 1);
+  }
+}
+
+async function loadSubmissions(page = 1) {
+  subPage = page;
+  const status = document.getElementById("filterStatus").value;
+  const params = new URLSearchParams({ page, page_size: 20 });
+  if (status) params.set("status", status);
+  const { ok, data } = await API("/api/submissions?" + params);
+  if (!ok || !data) return;
+
+  const list = document.getElementById("subList");
+  if (!data.items || !data.items.length) {
+    list.innerHTML = '<div class="empty">暂无提交内容</div>';
+    document.getElementById("subPagination").innerHTML = "";
+    return;
+  }
+
+  const statusCN = { pending: "待审核", analyzing: "分析中", approved: "已通过", rejected: "已驳回", manual_review: "待人工复核" };
+  const badgeClass = { approved: "badge-green", rejected: "badge-red", manual_review: "badge-yellow", pending: "badge-gray", analyzing: "badge-gray" };
+
+  list.innerHTML = data.items.map(s => `
+    <div class="sub-item" onclick="showDetail(${s.id})" style="cursor:pointer">
+      <div class="info">
+        <div class="title">${esc(s.title || s.caption || '(无标题)')}</div>
+        <div class="meta">${s.display_name} · ${s.region || ''} · ${s.created_at?.substring(0,16) || ''}</div>
+      </div>
+      <span class="status-badge result-badge ${badgeClass[s.status] || 'badge-gray'}">${statusCN[s.status] || s.status}</span>
+    </div>
+  `).join("");
+
+  // 分页
+  const totalPages = Math.ceil(data.total / data.page_size);
+  let pagHTML = "";
+  if (page > 1) pagHTML += `<button onclick="loadSubmissions(${page-1})">上一页</button>`;
+  pagHTML += `<span style="color:var(--muted);font-size:13px;padding:6px">第 ${page}/${totalPages} 页，共 ${data.total} 条</span>`;
+  if (page < totalPages) pagHTML += `<button onclick="loadSubmissions(${page+1})">下一页</button>`;
+  document.getElementById("subPagination").innerHTML = pagHTML;
+}
+
+async function showDetail(id) {
+  const { ok, data } = await API(`/api/submissions/${id}`);
+  if (!ok) return;
+  const card = document.getElementById("detailCard");
+  card.classList.remove("hidden");
+
+  const statusCN = { pending: "待审核", analyzing: "分析中", approved: "已通过 ✅", rejected: "已驳回 ❌", manual_review: "待人工复核 ⚠️" };
+  const riskCN = { none: "无风险", low: "低风险", medium: "中风险", high: "高风险", forbidden: "严重违规" };
+
+  const ai = data.ai_result || {};
+  const rules = data.matched_rules || [];
+  const media = data.media || [];
+
+  let mediaHTML = "";
+  for (const m of media) {
+    if (m.is_video) {
+      mediaHTML += `<video controls preload="metadata" src="/${m.path}" style="max-width:100%;max-height:300px;border-radius:8px;margin:4px"></video>`;
+    } else {
+      mediaHTML += `<img src="/${m.path}" style="max-width:100%;max-height:300px;border-radius:8px;margin:4px" />`;
+    }
+  }
+
+  document.getElementById("detailContent").innerHTML = `
+    <div class="result-card ${data.status}">
+      <span class="result-badge ${data.status === 'approved' ? 'badge-green' : data.status === 'rejected' ? 'badge-red' : data.status === 'manual_review' ? 'badge-yellow' : 'badge-gray'}">${statusCN[data.status]}</span>
+      <span style="margin-left:8px;font-size:13px;color:var(--muted)">风险等级: ${riskCN[data.risk_level] || data.risk_level}</span>
+    </div>
+    <p style="margin:12px 0"><b>标题:</b> ${esc(data.title || '(无)')}</p>
+    <p style="margin:12px 0"><b>文案:</b> ${esc(data.caption || '(无)')}</p>
+    ${mediaHTML ? `<div style="margin:12px 0">${mediaHTML}</div>` : ""}
+    ${ai.interpretation ? `<div class="card" style="margin:12px 0;padding:12px"><b>AI 解读:</b><br>${esc(ai.interpretation)}</div>` : ""}
+    ${ai.conclusion ? `<div class="card" style="margin:12px 0;padding:12px"><b>AI 结论:</b><br>${esc(ai.conclusion)}</div>` : ""}
+    ${ai.error ? `<div class="card" style="margin:12px 0;padding:12px;color:var(--red)"><b>AI 异常:</b> ${esc(ai.error)}</div>` : ""}
+    ${rules.length ? `<div class="rule-list"><b>命中规则:</b>${rules.map(r => `<div class="rule-item">[${r.severity}] ${r.rule_name}: ${esc(r.matched_text || '')}</div>`).join("")}</div>` : ""}
+    ${data.review_comment ? `<p style="margin:12px 0"><b>审核备注:</b> ${esc(data.review_comment)}</p>` : ""}
+    ${(data.status === "manual_review" && currentUser && (currentUser.role === "admin" || currentUser.role === "manager")) ? `
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="review(${data.id},'approve')">通过</button>
+        <button class="btn" style="background:var(--red);color:#fff" onclick="review(${data.id},'reject')">驳回</button>
+      </div>
+    ` : ""}
+  `;
+}
+
+async function review(id, action) {
+  const comment = prompt("审核备注（可选）:");
+  const { ok, data } = await API(`/api/submissions/${id}/review`, {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, comment: comment || null }),
+  });
+  if (ok) {
+    loadSubmissions();
+    document.getElementById("detailCard").classList.add("hidden");
+  } else {
+    alert("操作失败: " + ((data && data.detail) || ""));
+  }
+}
+
+function esc(s) { return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+</script>
+</body>
+</html>

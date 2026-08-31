@@ -1,0 +1,34 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ── Node ──
+node_modules/
+
+# ── 数据库（含真实数据，不入库）──
+*.db
+*.db-shm
+*.db-wal
+*.sqlite3
+
+# ── 密钥 / 环境变量 ──
+.env
+*.pem
+
+# ── 运行时数据 / 媒体 / 上传 ──
+backend/media/
+backend/uploads/
+backend/channels_dump/
+backend/debug_dumps/
+backend/sessions/
+backend/login_qrcode.png
+
+# ── macOS / IDE ──
+.DS_Store
+._*
+.idea/
+.vscode/
