@@ -242,8 +242,9 @@ def ai_score_content_quality(caption: str, media_list) -> Dict:
         "1. 结合文案与画面真实质量逐条独立打分，四个维度要有区分度，不要都打接近的分数。\n"
         "2. 单维拉开档次：优秀 8-10、良好 6-7、一般 4-5、差 0-3。\n"
         "3. total 必须等于四个维度分数之和，禁止套用固定分数或任何示例数值。\n"
+        "4. 每个维度的 reason 要针对该作品的具体文案/画面，说明为什么打这个分，不要空泛。\n"
         "必须仅输出 JSON，不要任何额外文字，格式：\n"
-        '{"dims":{"情":<0-10整数>,"理":<0-10整数>,"色":<0-10整数>,"诚":<0-10整数>},"total":<四维之和>,"reason":"<一句话理由>"}'
+        '{"dims":{"情":{"score":<0-10整数>,"reason":"<该维度一句话理由>"},"理":{"score":<0-10整数>,"reason":"<该维度一句话理由>"},"色":{"score":<0-10整数>,"reason":"<该维度一句话理由>"},"诚":{"score":<0-10整数>,"reason":"<该维度一句话理由>"}},"total":<四维之和>,"reason":"<整体一句话理由>"}'
     )
 
     user_parts: list = [
@@ -267,12 +268,25 @@ def ai_score_content_quality(caption: str, media_list) -> Dict:
 
     data = ai_auditor._extract_json(raw) or {}
     dims = data.get("dims") if isinstance(data.get("dims"), dict) else {}
+    # 归一化：兼容旧格式（数字）与新格式（{score, reason}），统一为 {dim: {score, reason}}
+    norm_dims = {}
+    for _k, _v in dims.items():
+        if isinstance(_v, dict):
+            try:
+                _score = max(0, min(10, int(_v.get("score") or 0)))
+            except (TypeError, ValueError):
+                _score = 0
+            norm_dims[_k] = {"score": _score, "reason": str(_v.get("reason") or "").strip()}
+        else:
+            try:
+                _score = max(0, min(10, int(_v)))
+            except (TypeError, ValueError):
+                _score = 0
+            norm_dims[_k] = {"score": _score, "reason": ""}
+
     total = data.get("total")
     if total is None:
-        try:
-            total = sum(int(v) for v in dims.values())
-        except Exception:
-            total = 0
+        total = sum(d["score"] for d in norm_dims.values())
     try:
         total = max(0, min(40, int(total)))
     except (TypeError, ValueError):
@@ -280,7 +294,7 @@ def ai_score_content_quality(caption: str, media_list) -> Dict:
 
     return {
         "score": total,
-        "dims": dims,
+        "dims": norm_dims,
         "reason": str(data.get("reason") or "").strip(),
         "error": None,
     }

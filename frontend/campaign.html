@@ -358,6 +358,16 @@ a:hover { color: var(--gold); }
 .merit-tag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
 .merit-tag.on { background: var(--gold-dim); color: var(--gold); }
 .merit-tag.off { background: var(--panel-2); color: var(--ink-3); }
+
+/* 情理色诚四维打分理由 */
+.dim-detail { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.dim-item { background: #fff; border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px 12px; }
+.dim-head { display: flex; align-items: center; gap: 8px; }
+.dim-name { font-size: 12px; font-weight: 600; color: var(--ink); }
+.dim-head b { font-family: var(--mono); font-size: 18px; font-weight: 800; color: var(--electric); margin-left: auto; }
+.dim-head i { font-style: normal; font-size: 11px; color: var(--ink-3); }
+.dim-reason { margin-top: 6px; font-size: 12px; color: var(--ink-2); line-height: 1.6; border-top: 1px dashed var(--line-soft); padding-top: 6px; }
+
 .detail-media { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
 .detail-media img, .detail-media video { max-width: 100%; max-height: 240px; border-radius: 10px; border: 1px solid var(--line-soft); background: var(--panel-2); display: block; }
 .detail-media video { width: 100%; max-width: 480px; }
@@ -949,6 +959,22 @@ function meritHtml(s) {
   return `<div class="merit-box">基础战功 <b>${em.base ?? 0}</b> ${tags} = 总战功 <b>${em.total ?? 0}</b></div>`;
 }
 
+function dimDetailHtml(s) {
+  const dims = s.ai_dims || {};
+  const keys = Object.keys(dims);
+  if (!keys.length) return '';
+  const names = {情:'有共鸣', 理:'有获得', 色:'愿意看', 诚:'真可信'};
+  return `<div class="dim-detail">` + keys.map(k => {
+    const v = dims[k];
+    const score = (v && typeof v === 'object') ? v.score : v;
+    const reason = (v && typeof v === 'object') ? (v.reason || '') : '';
+    return `<div class="dim-item">
+      <div class="dim-head"><span class="dim-name">${esc(k)}·${esc(names[k] || '')}</span><b>${score ?? '-'}</b><i>/10</i></div>
+      ${reason ? `<div class="dim-reason">${esc(reason)}</div>` : ''}
+    </div>`;
+  }).join('') + `</div>`;
+}
+
 async function showDetail(id) {
   curWorkId = id;
   const w = await api('/api/campaign/works/'+id);
@@ -980,9 +1006,7 @@ async function showDetail(id) {
       <div class="score-item"><div class="v"><span class="badge ${s.grade==='S'?'green':s.grade==='A'?'blue':s.grade==='B'?'muted':'yellow'}" style="font-size:16px">${s.grade}</span></div><div class="l">等级</div></div>
       <div class="score-item"><div class="v">${s.total_merit}</div><div class="l">战功（上限 15）</div></div>
     </div>`;
-    if (s.ai_dims && Object.keys(s.ai_dims).length) {
-      html += `<div class="dim-chips">${Object.entries(s.ai_dims).map(([k,v])=>`<span class="dim-chip">${esc(k)}·${esc(k==='情'?'有共鸣':k==='理'?'有获得':k==='色'?'愿意看':'真可信')} <b>${v}</b></span>`).join('')}</div>`;
-    }
+    html += dimDetailHtml(s);
     if (s.ai_reason) html += `<p class="hint mt">AI 打分理由：${esc(s.ai_reason)}</p>`;
     html += scoreStandardHtml();
     html += subScoreHtml(s);
@@ -997,9 +1021,7 @@ async function showDetail(id) {
       <div class="score-item"><div class="v">-</div><div class="l">用户留存 /30</div></div>
       <div class="score-item"><div class="v">-</div><div class="l">互动传播 /30</div></div>
     </div>`;
-    if (s.ai_dims && Object.keys(s.ai_dims).length) {
-      html += `<div class="dim-chips">${Object.entries(s.ai_dims).map(([k,v])=>`<span class="dim-chip">${esc(k)}·${esc(k==='情'?'有共鸣':k==='理'?'有获得':k==='色'?'愿意看':'真可信')} <b>${v}</b></span>`).join('')}</div>`;
-    }
+    html += dimDetailHtml(s);
     if (s.ai_reason) html += `<p class="hint mt">AI 打分理由：${esc(s.ai_reason)}</p>`;
     html += scoreStandardHtml();
     html += `<div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
