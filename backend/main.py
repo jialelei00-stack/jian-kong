@@ -37,10 +37,10 @@ import rules_engine
 import ai_auditor
 import auth
 import queue_manager
-from routers import auth_router, submissions_router, admin_router, notifications_router, usage_router
+from routers import auth_router, submissions_router, admin_router, notifications_router, usage_router, campaign_router
 from models import ChannelIn, ChannelCategoryIn, RuleIn, ContentIn, ModelConfigIn
 
-app = FastAPI(title="视频号合规管控")
+app = FastAPI(title="南孚在地营销")
 
 # ── 挂载模块化路由 ──
 app.include_router(auth_router)
@@ -48,6 +48,7 @@ app.include_router(submissions_router)
 app.include_router(admin_router)
 app.include_router(notifications_router)
 app.include_router(usage_router)
+app.include_router(campaign_router)
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), "media")
@@ -88,7 +89,7 @@ async def password_middleware(request: Request, call_next):
 
 
 # ── 统一认证中间件：注入用户 + API 拦截 ──
-_API_PUBLIC = {"/api/auth/login", "/api/auth/register", "/api/auth/guest", "/api/regions", "/api/submissions/upload"}
+_API_PUBLIC = {"/api/auth/login", "/api/auth/register", "/api/auth/guest", "/api/regions", "/api/submissions/upload", "/api/campaign/tracks", "/api/campaign/pending-by-name", "/api/campaign/submit-by-code", "/api/campaign/credentials/upload"}
 # 支持 guest 访问的 API（通过 guest_session cookie，不需要登录）
 _GUEST_API_PREFIXES = ("/api/submissions", "/api/notifications", "/api/dashboard/stats", "/api/queue/status")
 

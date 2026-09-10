@@ -11,6 +11,8 @@ const App = {
   subPage: 1,
   revPage: 1,
   selectedFiles: [],
+  t7ShotFiles: [],
+  t7ProofFiles: [],
   editingRuleId: null,
 
   /* =========================================================
@@ -22,6 +24,61 @@ const App = {
     let data = {};
     try { data = await r.json(); } catch { data = { _text: await r.text().catch(() => "") }; }
     return { ok: r.ok, status: r.status, data };
+  },
+
+  /* =========================================================
+     交互工具：数字滚动 + 骨架屏
+     ========================================================= */
+  // 数字从 0 滚动到目标值（easeOutCubic）
+  animateNumber(el, target, opts = {}) {
+    if (!el) return;
+    const { duration = 700, decimals = 0 } = opts;
+    const t = Number(target) || 0;
+    const start = performance.now();
+    const step = (now) => {
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const v = t * eased;
+      el.textContent = decimals ? v.toFixed(decimals) : Math.round(v).toLocaleString("zh-CN");
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  },
+  // 遍历容器内带 data-target 的数字元素并触发滚动
+  animateNumbers(container) {
+    if (!container) return;
+    container.querySelectorAll("[data-target]").forEach(el => {
+      const t = Number(el.dataset.target) || 0;
+      const dec = Number(el.dataset.decimals) || 0;
+      this.animateNumber(el, t, { decimals: dec });
+    });
+  },
+  // 条形图增长动画：遍历容器内带 data-width 的元素，从 0 过渡到目标宽度
+  animateBars(container) {
+    if (!container) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      container.querySelectorAll("[data-width]").forEach(el => { el.style.width = (el.dataset.width || 0) + "%"; });
+    }));
+  },
+  // 骨架屏：N 行文本
+  skeletonLines(n = 4) {
+    return `<div class="sk-box">` + Array.from({ length: n }, () =>
+      `<div class="sk" style="width:${35 + Math.floor(Math.random() * 55)}%"></div>`).join("") + `</div>`;
+  },
+  // 骨架屏：卡片网格
+  skeletonCards(n = 6) {
+    return `<div class="sk-grid">` + Array.from({ length: n }, () =>
+      `<div class="sk-card"><div class="sk" style="width:45%;height:20px"></div><div class="sk" style="width:82%"></div><div class="sk" style="width:60%"></div></div>`).join("") + `</div>`;
+  },
+  // 全国战况 KPI 卡片（带图标 + 主题色）
+  kpiCard(iconPath, label, target, accent = "#2563eb", soft = "#eff6ff") {
+    return `<div class="rp-kpi" style="--accent:${accent};--accent-soft:${soft}">
+      <span class="rp-kpi-icon"><svg class="ic" viewBox="0 0 24 24">${iconPath}</svg></span>
+      <div class="rp-kpi-main">
+        <div class="rp-kpi-num" data-target="${target}">0</div>
+        <div class="rp-kpi-lbl">${label}</div>
+      </div>
+    </div>`;
   },
 
   /* =========================================================
@@ -38,9 +95,16 @@ const App = {
     this._isUserPage = (pathname === "/user" || pathname === "/" || pathname === "/index.html");
     this._isManagerPage = (pathname === "/manager");
 
+    // 顶部栏仅在管理后台显示；公开上传页（/user）隐藏
+    const mgrTopbar = document.getElementById("mgrTopbar");
+    if (mgrTopbar) mgrTopbar.style.display = this._isManagerPage ? "" : "none";
+
     // 加载区域数据
     const { data: reg } = await this._api("/api/regions");
     if (reg) this.regions = reg;
+
+    // 加载双百战役赛道（填充上传表单下拉）
+    this._loadTracks();
 
     // 检查登录状态
     const { ok, data } = await this._api("/api/auth/me");
@@ -77,12 +141,32 @@ const App = {
       this.switchView("upload");
       this.loadRecentSubs();
     } else {
-      // /manager：其他角色展示看板
-      this.switchView("dashboard");
+      // /manager：从驾驶舱返回时恢复到上次所在视图；否则默认全国战况
+      let lastView = null;
+      try { lastView = sessionStorage.getItem("jk_last_view"); } catch (e) {}
+      const isAdmin = data.role === "admin";
+      const allowed = isAdmin
+        ? ["regionperf", "subdash", "dashboard", "channels", "rules", "modelcfg", "review", "admin", "usage_log"]
+        : ["regionperf", "subdash", "dashboard", "channels", "rules", "modelcfg", "review"];
+      this.switchView(lastView && allowed.includes(lastView) ? lastView : "regionperf");
     }
     this.loadNotifs();
     this._prepRegions();
     document.addEventListener("click", this._clickOutside);
+  },
+
+  async _loadTracks() {
+    try {
+      const { data } = await this._api("/api/campaign/tracks");
+      const tracks = (data && data.tracks) || [];
+      const sel = document.getElementById("upTrack");
+      if (sel) {
+        sel.innerHTML = tracks.map(t => `<option value="${t.name}">${t.name}</option>`).join('') +
+          '<option value="">不参与双百战役</option>';
+        // 默认参加：默认选中第一条赛道
+        if (tracks.length) sel.value = tracks[0].name;
+      }
+    } catch (e) {}
   },
 
   _renderGuest() {
@@ -119,9 +203,14 @@ const App = {
 
   _renderSidebar() {
     const u = this.me;
+    const roleLabel = u.role === "admin" ? "超级管理员" : u.role === "manager" ? "在地营销经理" : "区域经理";
+    const initial = (u.display_name || u.username || "?").trim().charAt(0);
     document.getElementById("sideUser").innerHTML = `
-      <div class="name">${this.esc(u.display_name || u.username)}</div>
-      <div class="role">${u.role === "admin" ? "超级管理员" : u.role === "manager" ? "在地营销经理" : "区域经理"}</div>`;
+      <span class="side-avatar">${this.esc(initial)}</span>
+      <span class="side-user-meta">
+        <span class="name">${this.esc(u.display_name || u.username)}</span>
+        <span class="role">${roleLabel}</span>
+      </span>`;
 
     // 按角色过滤导航项（主菜单 + 底部菜单）
     document.querySelectorAll("#sideNav > a, #sideNav > .sep, #sideBottom > a, #sideBottom > .sep").forEach(el => {
@@ -202,9 +291,18 @@ const App = {
     document.querySelectorAll(".side-nav a, .side-bottom a[data-view]").forEach(a => a.classList.toggle("active", a.dataset.view === name));
     document.querySelectorAll(".pane").forEach(p => p.classList.toggle("active", p.id === "pane-" + name));
 
+    const titles = {
+      dashboard: "看板总览", subdash: "提交审核", upload: "内容审核",
+      regionperf: "全国战况", channels: "视频号管理", rules: "合规规则", modelcfg: "模型配置",
+      review: "审核管理", admin: "用户管理", usage_log: "使用日志",
+    };
+    const vt = document.getElementById("viewTitle");
+    if (vt) vt.textContent = titles[name] || "南孚在地营销";
+
     const loaders = {
       dashboard: () => this.loadDashboard(),
       subdash: () => this.loadSubDashboard(),
+      regionperf: () => this.loadRegionOverview(),
       channels: () => this.loadChannels(),
       upload: () => {
         this._setupDragDrop();
@@ -247,13 +345,20 @@ const App = {
     // 统计卡片 — row1（采集系统）
     const labels = ["监控视频号", "采集内容", "违规内容", "合规内容", "待人工复核"];
     const colors = ["var(--primary)", "var(--text)", "var(--red)", "var(--green)", "var(--orange)"];
+    const icons = [
+      '<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg>',
+      '<svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>',
+      '<svg class="ic" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg>',
+      '<svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+      '<svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+    ];
     const vals = [data.channel_count || 0,
             data.content_count || 0,
             data.violation_count || 0,
             data.compliant_count || 0,
             data.manual_review_count || 0];
     document.getElementById("statGrid").innerHTML = labels.map((l, i) =>
-      `<div class="stat-card"><div class="num" style="color:${colors[i]}">${vals[i]}</div><div class="lbl">${l}</div></div>`
+      `<div class="stat-card"><span class="stat-ic" style="color:${colors[i]}">${icons[i]}</span><span class="stat-meta"><span class="num" style="color:${colors[i]}">${vals[i]}</span><span class="lbl">${l}</span></span></div>`
     ).join("");
 
     // 统计卡片 — row2（提交侧）
@@ -261,9 +366,16 @@ const App = {
       const sl = ["提交总数", "已通过", "已驳回", "待复核"];
       const sv = [data.submission_total, data.submission_approved, data.submission_rejected, data.submission_manual_review];
       const sc = ["var(--primary)", "var(--green)", "var(--red)", "var(--orange)"];
+      const sic = [
+        '<svg class="ic" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>',
+        '<svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+        '<svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+        '<svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+      ];
       document.getElementById("statGridSub").innerHTML = sl.map((l, i) =>
-        `<div class="stat-card"><div class="num" style="color:${sc[i]}">${sv[i] || 0}</div><div class="lbl">${l}</div></div>`
+        `<div class="stat-card"><span class="stat-ic" style="color:${sc[i]}">${sic[i]}</span><span class="stat-meta"><span class="num" style="color:${sc[i]}" data-target="${sv[i] || 0}">0</span><span class="lbl">${l}</span></span></div>`
       ).join("");
+      this.animateNumbers(document.getElementById("statGridSub"));
 
       // 区域提交统计表（仅 admin）
       if (isAdmin) {
@@ -325,6 +437,21 @@ const App = {
      提交审核看板（所有角色可见）
      ========================================================= */
   async loadSubDashboard() {
+    // 初始化大区筛选下拉
+    const db = document.getElementById("subdashRegionBig");
+    if (db && db.options.length <= 1) {
+      for (const big of Object.keys(this.regions || {})) {
+        const o = document.createElement("option"); o.value = big; o.textContent = big; db.appendChild(o);
+      }
+    }
+    // 初始化赛道筛选下拉
+    const dt = document.getElementById("subdashTrack");
+    if (dt && dt.options.length <= 1) {
+      try {
+        const { data: tr } = await this._api("/api/campaign/tracks");
+        (tr?.tracks || []).forEach(t => { const o = document.createElement("option"); o.value = t.name; o.textContent = t.name; dt.appendChild(o); });
+      } catch (e) {}
+    }
     // 并行拉取统计 + 列表
     const [statsRes] = await Promise.all([
       this._api("/api/dashboard/stats"),
@@ -377,14 +504,23 @@ const App = {
     document.getElementById("subdashRiskBars").innerHTML = ["red", "yellow", "green"].map(k => {
       const cnt = rd[k] || 0;
       const pct = (cnt / totalRisk * 100).toFixed(0);
-      return `<div class="risk-row"><div class="name">${rl[k]}</div><div class="bar"><span style="width:${pct}%;background:${rc[k]}"></span></div><div class="cnt" style="color:${rc[k]}">${cnt}</div></div>`;
+      return `<div class="risk-row"><div class="name">${rl[k]}</div><div class="bar"><span data-width="${pct}" style="width:0;background:${rc[k]}"></span></div><div class="cnt" style="color:${rc[k]}">${cnt}</div></div>`;
     }).join("");
+    this.animateBars(document.getElementById("subdashRiskBars"));
   },
 
   async _loadSubdashTable(page = 1) {
     const status = document.getElementById("subdashFilterStatus")?.value || "";
+    const campaign = document.getElementById("subdashCampaign")?.value || "";
+    const track = document.getElementById("subdashTrack")?.value || "";
+    const big = document.getElementById("subdashRegionBig")?.value || "";
+    const sub = document.getElementById("subdashRegionSub")?.value || "";
+    const region = big && sub ? `${big} / ${sub}` : (big || "");
     const params = new URLSearchParams({ page, page_size: 10 });
     if (status) params.set("status", status);
+    if (campaign) params.set("campaign", campaign);
+    if (track) params.set("track", track);
+    if (region) params.set("region", region);
 
     const { data } = await this._api("/api/submissions?" + params);
     if (!data || !data.items) return;
@@ -404,7 +540,7 @@ const App = {
         <td>${this.esc(s.region || "")}</td>
         <td style="font-size:12px;color:var(--muted)">${(s.created_at || "").substring(0, 16)}</td>
         <td><span class="badge ${bc[s.status] || 'badge-muted'}">${cn[s.status] || s.status}</span></td>
-        <td><button class="btn sm danger" onclick="event.stopPropagation();App.deleteSub(${s.id})" title="删除">🗑</button></td>
+        <td><button class="btn sm danger" onclick="event.stopPropagation();App.deleteSub(${s.id})" title="删除">删除</button></td>
       </tr>`;
     }).join("") || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">暂无提交</td></tr>';
 
@@ -417,6 +553,292 @@ const App = {
 
     const el = document.getElementById("subdashCount");
     if (el) el.textContent = `共 ${data.total} 条`;
+  },
+
+  onSubdashRegionBig() {
+    const big = document.getElementById("subdashRegionBig")?.value || "";
+    const sub = document.getElementById("subdashRegionSub");
+    if (!sub) return;
+    sub.innerHTML = '<option value="">全部区域</option>';
+    if (big && this.regions[big]) {
+      this.regions[big].forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = s; sub.appendChild(o); });
+    }
+    this._loadSubdashTable(1);
+  },
+
+  /* =========================================================
+     区域业绩（三级下钻：大区 → 细分区域 → 作品/线索）
+     ========================================================= */
+  async loadRegionOverview() {
+    const bc = document.getElementById("rpBreadcrumb");
+    if (bc) bc.textContent = "全国战况 · 区域业绩";
+    const body = document.getElementById("rpBody");
+    if (!body) return;
+    body.innerHTML = this.skeletonCards(6);
+    const { data } = await this._api("/api/campaign/region/overview");
+    if (!body) return;
+    const zones = data || [];
+    if (!zones.length) {
+      body.innerHTML = '<div class="empty">暂无区域数据</div>';
+      return;
+    }
+    const meritMap = {};
+    zones.forEach(z => { meritMap[z.region] = z.total_merit || 0; });
+    const maxMerit = Math.max(...zones.map(z => z.total_merit || 0), 1);
+
+    const sum = k => zones.reduce((s, z) => s + (z[k] || 0), 0);
+
+    const ALL_ZONES = ["华东区", "华北区", "华南区", "东北区", "西一区", "西二区"];
+    const rankColors = ["#9f1239", "#1e3a8a", "#b45309", "#475569", "#64748b", "#94a3b8"];
+    const zoneRank = {};
+    zones.forEach((z, i) => { zoneRank[z.region] = i; });
+    const legendHtml = ALL_ZONES.map(z => {
+      const idx = zoneRank[z];
+      const color = idx != null ? rankColors[idx] : "#e8edf4";
+      const val = idx != null ? zones[idx].total_merit : "0";
+      return `<div class="lg-item" onclick="App.drillSubregions('${z}')"><i style="background:${color}"></i><span>${z}</span><em>${val}</em></div>`;
+    }).join("");
+
+    body.innerHTML = `
+      <div class="rp-kpis rise-in">
+        ${this.kpiCard('<path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/>', "总战功", sum("total_merit"), "#2563eb", "#eff6ff")}
+        ${this.kpiCard('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>', "总作品", sum("work_count"), "#0ea5e9", "#f0f9ff")}
+        ${this.kpiCard('<path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"/>', "S·A 级作品", sum("s_a_count"), "#f59e0b", "#fffbeb")}
+        ${this.kpiCard('<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/>', "有效创作者", sum("valid_creator_count"), "#16a34a", "#f0fdf4")}
+        ${this.kpiCard('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/>', "有效线索", sum("lead_count"), "#8b5cf6", "#f5f3ff")}
+        ${this.kpiCard('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>', "参与大区", zones.length, "#0d9488", "#f0fdfa")}
+      </div>
+      <div class="warzone-wrap">
+        <div class="warzone-map">
+          <div class="map-title"><span class="dot"></span><b>全国战况地图</b><span>· 点击大区下钻</span></div>
+          <div id="chinaMap" style="width:100%;height:100%"></div>
+          <div class="map-legend">${legendHtml}</div>
+          <div class="map-zoom">
+            <button type="button" onclick="App.zoomMap(1.5)" title="放大">＋</button>
+            <button type="button" onclick="App.zoomMap(0.67)" title="缩小">－</button>
+            <button type="button" onclick="App.resetMap()" title="重置">↺</button>
+          </div>
+        </div>
+        <div class="warzone-rank">
+          <div class="wz-head">
+            <div>
+              <h3>大区战功榜</h3>
+              <p>按 100 分制综合排名</p>
+            </div>
+            <span class="wz-badge">${zones.length} 大区</span>
+          </div>
+          <div class="wz-list">
+            ${zones.map((z, i) => {
+              const cls = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
+              return `
+              <div class="wz-row ${cls}" onclick="App.drillSubregions('${this.esc(z.region)}')">
+                <span class="wz-idx ${cls}">${i + 1}</span>
+                <div class="wz-main">
+                  <div class="wz-name"><span>${this.esc(z.region)}</span><em>${z.total}分</em></div>
+                  <div class="wz-bar"><i data-width="${Math.round((z.total_merit || 0) / maxMerit * 100)}" style="width:0"></i></div>
+                  <div class="wz-sub">作品 ${z.work_count} · S·A ${z.s_a_count} · 创作者 ${z.valid_creator_count} · 线索 ${z.lead_count}</div>
+                </div>
+                <div class="wz-val"><b>${z.total_merit}</b><small>战功</small></div>
+              </div>`;
+            }).join("")}
+          </div>
+          <div class="wz-tip">点击大区下钻查看细分区域业绩</div>
+        </div>
+      </div>`;
+
+    this._renderChinaMap(zones, meritMap);
+    this.animateNumbers(body);
+    this.animateBars(body);
+  },
+
+  async _renderChinaMap(zones, meritMap) {
+    const el = document.getElementById("chinaMap");
+    if (!el) return;
+    if (typeof echarts === "undefined") {
+      el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">地图组件加载失败，请刷新重试</div>';
+      return;
+    }
+    const ZONE_BY_KEYWORD = [
+      ["华东区", ["上海", "江苏", "浙江", "安徽"]],
+      ["华北区", ["北京", "天津", "河北", "山西", "山东", "河南"]],
+      ["华南区", ["广东", "海南", "湖北", "湖南", "江西", "福建"]],
+      ["东北区", ["黑龙江", "吉林", "辽宁", "内蒙古"]],
+      ["西一区", ["重庆", "四川", "陕西", "甘肃", "青海", "宁夏", "西藏", "新疆"]],
+      ["西二区", ["贵州", "广西", "云南"]],
+    ];
+    const zoneOf = name => {
+      for (const [z, kws] of ZONE_BY_KEYWORD) {
+        if (kws.some(k => name.includes(k))) return z;
+      }
+      return "";
+    };
+    const rankColors = ["#9f1239", "#1e3a8a", "#b45309", "#475569", "#64748b", "#94a3b8"];
+    const zoneColor = {};
+    zones.forEach((z, i) => { zoneColor[z.region] = rankColors[i] || "#94a3b8"; });
+
+    let geo;
+    try {
+      const res = await fetch("/china.json");
+      geo = await res.json();
+    } catch (e) {
+      el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">地图数据加载失败</div>';
+      return;
+    }
+
+    if (this._chinaChart) { this._chinaChart.dispose(); this._chinaChart = null; }
+    echarts.registerMap("china", geo);
+    const chart = echarts.init(el);
+    this._chinaChart = chart;
+
+    const option = {
+      tooltip: {
+        trigger: "item",
+        formatter: p => {
+          const z = zoneOf(p.name);
+          const v = meritMap[z];
+          return z
+            ? `${p.name}<br/>${z}：战功 ${v != null ? v : "暂无数据"}`
+            : `${p.name}<br/>未分区`;
+        },
+      },
+      series: [{
+        type: "map",
+        map: "china",
+        roam: true,
+        scaleLimit: { min: 0.8, max: 6 },
+        zoom: 1.2,
+        label: { show: true, fontSize: 11, color: "#4b5563" },
+        itemStyle: { borderColor: "#ffffff", borderWidth: 1 },
+        emphasis: {
+          label: { show: true, color: "#111", fontWeight: "bold" },
+          itemStyle: { areaColor: "#fecaca" },
+        },
+        data: geo.features.map(f => {
+          const pname = f.properties.name || "";
+          const z = zoneOf(pname);
+          const hasData = z && meritMap[z] != null;
+          return {
+            name: pname,
+            value: meritMap[z] || 0,
+            itemStyle: hasData
+              ? { areaColor: zoneColor[z] }
+              : (z ? { areaColor: "#e8edf4" } : { areaColor: "#f1f5f9" }),
+          };
+        }),
+      }],
+    };
+    this._chinaBaseOption = option;
+    chart.setOption(option);
+
+    chart.on("click", p => {
+      const z = zoneOf(p.name);
+      if (z && meritMap[z] != null) this.drillSubregions(z);
+    });
+    window.addEventListener("resize", () => chart.resize());
+  },
+
+  zoomMap(factor) {
+    const chart = this._chinaChart;
+    if (!chart) return;
+    const cur = (chart.getOption().series && chart.getOption().series[0] && chart.getOption().series[0].zoom) || 1;
+    const next = Math.min(6, Math.max(0.8, cur * factor));
+    chart.setOption({ series: [{ zoom: next }] });
+  },
+
+  resetMap() {
+    const chart = this._chinaChart;
+    if (!chart) return;
+    if (this._chinaBaseOption) chart.setOption(this._chinaBaseOption, true);
+  },
+
+  async drillSubregions(big) {
+    const bc = document.getElementById("rpBreadcrumb");
+    if (bc) bc.innerHTML = `<a href="javascript:void(0)" onclick="App.loadRegionOverview()">全部大区</a><span class="sep">›</span>${this.esc(big)}`;
+    const body = document.getElementById("rpBody");
+    if (body) body.innerHTML = this.skeletonLines(6);
+    const { data } = await this._api("/api/campaign/region/subregions?big=" + encodeURIComponent(big));
+    if (!body) return;
+    if (!data || !data.length) {
+      body.innerHTML = '<div class="empty">该大区暂无细分区域数据</div>';
+      return;
+    }
+    const sum = k => data.reduce((s, x) => s + (x[k] || 0), 0);
+    body.innerHTML = `
+      <div class="rp-kpis rise-in">
+        ${this.kpiCard('<path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/>', "总战功", sum("total_merit"), "#2563eb", "#eff6ff")}
+        ${this.kpiCard('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>', "总作品", sum("work_count"), "#0ea5e9", "#f0f9ff")}
+        ${this.kpiCard('<path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"/>', "S·A 级作品", sum("s_a_count"), "#f59e0b", "#fffbeb")}
+        ${this.kpiCard('<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/>', "有效创作者", sum("valid_creator_count"), "#16a34a", "#f0fdf4")}
+        ${this.kpiCard('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/>', "有效线索", sum("lead_count"), "#8b5cf6", "#f5f3ff")}
+        ${this.kpiCard('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>', "细分区域", data.length, "#0d9488", "#f0fdfa")}
+      </div>
+      <div class="table-scroll rise-in"><table class="data-table">
+      <thead><tr><th>细分区域</th><th>作品</th><th>S·A</th><th>创作者</th><th>战功</th><th>有效线索</th></tr></thead>
+      <tbody>` + data.map(s => `
+        <tr onclick="App.drillRegionDetail('${this.esc(s.region)}')" style="cursor:pointer">
+          <td>${this.esc(s.sub_region)}</td>
+          <td class="num">${s.work_count}</td>
+          <td class="num">${s.s_a_count}</td>
+          <td class="num">${s.valid_creator_count}</td>
+          <td class="num" style="color:var(--primary);font-weight:600">${s.total_merit}</td>
+          <td class="num">${s.lead_count}</td>
+        </tr>`).join("") + `
+      </tbody></table></div>`;
+    this.animateNumbers(body);
+  },
+
+  async drillRegionDetail(fullRegion) {
+    const bigName = (fullRegion || "").split("/")[0].trim();
+    const bc = document.getElementById("rpBreadcrumb");
+    if (bc) bc.innerHTML = `<a href="javascript:void(0)" onclick="App.loadRegionOverview()">全部大区</a><span class="sep">›</span><a href="javascript:void(0)" onclick="App.drillSubregions('${this.esc(bigName)}')">${this.esc(bigName)}</a><span class="sep">›</span>${this.esc(fullRegion)}`;
+    const body = document.getElementById("rpBody");
+    if (body) body.innerHTML = this.skeletonLines(6);
+    const [worksRes, credsRes] = await Promise.all([
+      this._api("/api/campaign/works?region=" + encodeURIComponent(fullRegion)),
+      this._api("/api/campaign/credentials?region=" + encodeURIComponent(fullRegion)),
+    ]);
+    if (!body) return;
+    const works = worksRes.data || [];
+    const creds = credsRes.data || [];
+    const tp = { screenshot: "后台数据截图", business: "有效线索回传" };
+    const st = { pending_review: "待初审", pending_t7: "待T+7", qualified: "已计分", eliminated: "淘汰", disqualified: "已清零" };
+    const qualifiedCount = works.filter(w => w.status === "qualified").length;
+    const totalMerit = works.reduce((s, w) => s + (w.total_merit || 0), 0);
+    const businessCount = creds.filter(c => c.type === "business").length;
+    body.innerHTML = `
+      <div class="rp-kpis rise-in col-4">
+        ${this.kpiCard('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>', "作品总数", works.length, "#0ea5e9", "#f0f9ff")}
+        ${this.kpiCard('<path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="m9 11 3 3L22 4"/>', "已计分作品", qualifiedCount, "#16a34a", "#f0fdf4")}
+        ${this.kpiCard('<path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/>', "总战功", totalMerit, "#2563eb", "#eff6ff")}
+        ${this.kpiCard('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/>', "有效线索", businessCount, "#8b5cf6", "#f5f3ff")}
+      </div>
+      <div class="rise-in">
+      <div class="card"><h3>作品明细（${works.length}）</h3>
+        <div class="table-scroll"><table class="data-table">
+          <thead><tr><th>作品码</th><th>标题</th><th>创作者</th><th>赛道</th><th>状态</th><th>战功</th></tr></thead>
+          <tbody>` + (works.length ? works.map(w => `
+            <tr><td><code>${this.esc(w.code || "")}</code></td>
+            <td>${this.esc((w.title || "").slice(0, 20))}</td>
+            <td>${this.esc(w.creator_name || "")}</td>
+            <td>${this.esc(w.track || "")}</td>
+            <td>${st[w.status] || w.status || "-"}</td>
+            <td class="num">${w.total_merit || 0}</td></tr>`).join("") : '<tr><td colspan="6" style="color:var(--muted);text-align:center">暂无作品</td></tr>') + `
+          </tbody>
+        </table></div>
+      </div>
+      <div class="card"><h3>有效线索明细（${creds.length}）</h3>
+        <div class="table-scroll"><table class="data-table">
+          <thead><tr><th>作品码</th><th>类型</th><th>凭证</th><th>时间</th></tr></thead>
+          <tbody>` + (creds.length ? creds.map(c => `
+            <tr><td><code>${this.esc(c.code || "")}</code></td>
+            <td><span class="badge ${c.type === "business" ? "badge-green" : "badge-blue"}">${tp[c.type] || c.type}</span></td>
+            <td>${c.url ? `<a href="${this.esc(c.url)}" target="_blank"><img src="${this.esc(c.url)}" style="width:36px;height:36px;object-fit:cover;border-radius:6px"></a>` : this.esc(c.file || "")}</td>
+            <td style="font-size:12px;color:var(--muted)">${(c.created_at || "").slice(0, 16)}</td></tr>`).join("") : '<tr><td colspan="4" style="color:var(--muted);text-align:center">暂无有效线索</td></tr>') + `
+          </tbody>
+        </table></div>
+      </div>
+      </div>`;
+    this.animateNumbers(body);
   },
 
   async renderFeed(page = 1, caller = "") {
@@ -463,7 +885,7 @@ const App = {
       this.feedData.total = data.total;
       document.getElementById("feedCount").textContent = `共 ${data.total} 条`;
 
-      const tags = { red: "🔴", yellow: "🟡", green: "🟢", forbidden: "🔴", none: "⚪" };
+      const tagColor = { red: "#dc2626", yellow: "#f59e0b", green: "#16a34a", forbidden: "#dc2626", none: "#d1d5db" };
       const tagsLabel = { red: "违规", yellow: "疑似", green: "合规", forbidden: "违规", none: "" };
       const cards = data.items;
       document.getElementById("contentFeed").innerHTML = cards.length
@@ -477,7 +899,7 @@ const App = {
             <div class="media-cell">${thumb ? `<img src="${this.esc(thumb)}" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\\'color:var(--muted);font-size:32px\\'>${c.is_video ? '🎬' : '📄'}</span>'" />` : `<span style="color:var(--muted);font-size:32px">${c.is_video ? '🎬' : '📄'}</span>`}</div>
             <div class="ctext">${this.esc(c.caption || c.title || "(无内容)")}</div>
             <div class="cmeta">
-              <span>${tags[c.risk_level] || "⚪"} ${tagsLabel[c.risk_level] || c.risk_level || "未标"}</span>
+              <span style="display:inline-flex;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:${tagColor[c.risk_level]||'#d1d5db'};margin-right:5px;display:inline-block"></span>${tagsLabel[c.risk_level] || c.risk_level || "未标"}</span>
               <span>👁 ${stats.read || 0} ❤ ${stats.like || 0}</span>
             </div>
             ${aiBrief ? `<div style="font-size:11px;color:var(--muted);padding:4px 8px;line-height:1.4">🤖 ${this.esc(aiBrief)}</div>` : ""}
@@ -770,6 +1192,151 @@ const App = {
       </span>`).join("");
   },
 
+  switchUploadTab(tab) {
+    const isUpload = tab === "upload";
+    document.getElementById("uploadCard").style.display = isUpload ? "" : "none";
+    document.getElementById("t7Card").style.display = isUpload ? "none" : "";
+    document.getElementById("tabUploadBtn").classList.toggle("on", isUpload);
+    document.getElementById("tabT7Btn").classList.toggle("on", !isUpload);
+  },
+
+  goT7() {
+    const code = (document.getElementById("t7Code")?.value || "").trim();
+    if (!code) return alert("请先粘贴一稿一码");
+    this.openT7Form(code);
+  },
+
+  openT7Form(code) {
+    document.getElementById("t7FormCode").textContent = code;
+    document.getElementById("t7Form").style.display = "";
+    document.getElementById("t7Msg").textContent = "";
+    this.t7ShotFiles = [];
+    this.t7ProofFiles = [];
+    const sf = document.getElementById("t7ShotFile"); if (sf) sf.value = "";
+    const pf = document.getElementById("t7ProofFile"); if (pf) pf.value = "";
+    this._renderT7Thumbs("screenshot");
+    this._renderT7Thumbs("business");
+    document.getElementById("t7Form").scrollIntoView({ behavior: "smooth", block: "center" });
+  },
+
+  onT7CredFiles(input, type) {
+    const list = type === "screenshot" ? this.t7ShotFiles : this.t7ProofFiles;
+    const files = Array.from(input.files || []);
+    files.forEach(f => this._uploadT7Cred(f, type, list));
+    input.value = "";
+  },
+
+  async _normalizeImage(file) {
+    // 统一转成 JPEG 并压缩：解决 iPhone HEIC 无法显示、扩展名与内容不符的问题
+    if (file.type === "image/gif") return file; // 动图保留
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("无法解码图片"));
+        im.src = url;
+      });
+      const maxDim = 1600;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.85));
+      if (!blob) throw new Error("转码失败");
+      const base = (file.name || "image").replace(/\.[^.]+$/, "") || "image";
+      return new File([blob], base + ".jpg", { type: "image/jpeg" });
+    } catch (e) {
+      return file; // 解码失败则回退原文件
+    }
+  },
+
+  async _uploadT7Cred(file, type, list) {
+    file = await this._normalizeImage(file);
+    const fd = new FormData();
+    fd.append("type", type);
+    fd.append("file", file);
+    try {
+      const { ok, data } = await this._api("/api/campaign/credentials/upload", { method: "POST", body: fd });
+      if (ok && data && data.files) data.files.forEach(item => list.push(item));
+    } catch (e) {
+      alert("图片上传失败：" + e.message);
+    }
+    this._renderT7Thumbs(type);
+  },
+
+  _renderT7Thumbs(type) {
+    const list = type === "screenshot" ? this.t7ShotFiles : this.t7ProofFiles;
+    const id = type === "screenshot" ? "t7ShotList" : "t7ProofList";
+    const box = document.getElementById(id);
+    if (box) box.innerHTML = list.map((x, i) =>
+      `<span class="thumb-item"><img src="${this.esc(x.url || x.cos_key)}" alt=""><button type="button" class="rm" onclick="App.removeT7Thumb('${type}',${i})">×</button></span>`
+    ).join("");
+  },
+
+  removeT7Thumb(type, i) {
+    const list = type === "screenshot" ? this.t7ShotFiles : this.t7ProofFiles;
+    list.splice(i, 1);
+    this._renderT7Thumbs(type);
+  },
+
+  async doSubmitT7() {
+    const code = document.getElementById("t7FormCode").textContent.trim();
+    const name = (document.getElementById("t7Name")?.value || "").trim();
+    if (!code) return alert("缺少一稿一码");
+    if (!name) return alert("请先填写姓名");
+    const body = {
+      code: code,
+      name: name,
+      plays: parseInt(document.getElementById("t7Plays").value) || 0,
+      retention_3s: parseFloat(document.getElementById("t7R3").value) || 0,
+      completion_rate: parseFloat(document.getElementById("t7Comp").value) || 0,
+      deep_interaction_rate: parseFloat(document.getElementById("t7Deep").value) || 0,
+      like_rate: parseFloat(document.getElementById("t7Like").value) || 0,
+      original: document.getElementById("t7Original").checked,
+      screenshot: this.t7ShotFiles.map(x => ({ file: x.cos_key, url: x.url })),
+      business_proof: this.t7ProofFiles.map(x => ({ file: x.cos_key, url: x.url })),
+    };
+    const msg = document.getElementById("t7Msg");
+    msg.textContent = "提交中…";
+    msg.style.color = "#4b5563";
+    const { ok, data } = await this._api("/api/campaign/submit-by-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!ok) { msg.textContent = "回传失败：" + (data.detail || "服务器错误"); msg.style.color = "#dc2626"; return; }
+    if (data.qualified) {
+      msg.innerHTML = `已计分：总分 <b style="color:#2563eb">${data.score.total_score}</b> · 等级 <b>${data.score.grade}</b> · 战功 <b style="color:#2563eb">${data.score.total_merit}</b>`;
+      msg.style.color = "#16a34a";
+    } else {
+      msg.textContent = "未达参评门槛：" + (data.reject_reasons || []).join("；");
+      msg.style.color = "#d97706";
+    }
+  },
+
+  async queryPending() {
+    const name = (document.getElementById("t7Name")?.value || document.getElementById("upName")?.value || "").trim();
+    if (!name) return alert("请先填写您的姓名");
+    const big = (document.getElementById("upBigRegion")?.value || "").trim();
+    const sub = (document.getElementById("upSubRegion")?.value || "").trim();
+    const region = big && sub ? `${big} / ${sub}` : "";
+    const box = document.getElementById("pendingList");
+    if (box) box.innerHTML = '<div style="font-size:12px;color:#1d4ed8">查询中…</div>';
+    const { ok, data } = await this._api(`/api/campaign/pending-by-name?name=${encodeURIComponent(name)}&region=${encodeURIComponent(region)}`);
+    if (!box) return;
+    if (!ok || !Array.isArray(data)) { box.innerHTML = '<div style="font-size:12px;color:#dc2626">查询失败</div>'; return; }
+    if (!data.length) { box.innerHTML = '<div style="font-size:12px;color:#1d4ed8">没有待回传的作品</div>'; return; }
+    box.innerHTML = data.map(w => `
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed #dbeafe">
+        <code style="font-size:12px;background:#fff;padding:2px 6px;border-radius:5px;color:#1d4ed8">${this.esc(w.code)}</code>
+        <span style="flex:1;font-size:12px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.esc(w.title||'')}${w.track?' · '+this.esc(w.track):''}</span>
+        <button class="btn sm" style="height:30px;padding:0 12px;font-size:12px;border-radius:8px" onclick="App.openT7Form('${this.esc(w.code)}')">回传</button>
+      </div>`).join("");
+  },
+
   async doUpload() {
     const caption = document.getElementById("upCaption").value.trim();
     if (!this.selectedFiles.length && !caption) return alert("请上传文件或填写文案");
@@ -798,6 +1365,8 @@ const App = {
     const form = new FormData();
     form.append("title", document.getElementById("upTitle").value.trim());
     form.append("caption", caption);
+    const trackVal = (document.getElementById("upTrack")?.value || "").trim();
+    if (trackVal) form.append("track", trackVal);
     if (isGuest) {
       form.append("display_name", nameVal);
       form.append("region", regionVal);
@@ -834,7 +1403,11 @@ const App = {
 
       const { ok, data } = result;
       if (ok && data.ok) {
-        msg.textContent = `提交成功！正在AI审核中，请稍候...`;
+        if (data.campaign_code) {
+          msg.innerHTML = `提交成功！<b style="color:var(--brand)">一稿一码：${this.esc(data.campaign_code)}</b><br><span style="font-size:12px">请保存此码，7 天后凭码回传 T+7 数据</span><br>正在 AI 审核中，请稍候...`;
+        } else {
+          msg.textContent = `提交成功！正在AI审核中，请稍候...`;
+        }
         msg.style.color = "var(--primary)";
         this.selectedFiles = [];
         this._renderFileList();
@@ -935,13 +1508,13 @@ const App = {
       const sevMap = { forbidden: "严重", high: "高", medium: "中", low: "低" };
       const sevColor = { forbidden: "#dc2626", high: "#ef4444", medium: "#f97316", low: "#f59e0b" };
       rulesHTML = rules.map(r => `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid #f0f0f0;border-radius:8px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
           <span style="flex-shrink:0;display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${sevColor[r.severity] || '#999'}">${sevMap[r.severity] || r.severity}</span>
           <span style="font-weight:600;font-size:13px">${this.esc(r.rule_name || "未知规则")}</span>
           ${r.matched_text ? `<span style="font-size:12px;color:var(--muted);margin-left:auto">匹配: 「${this.esc(r.matched_text.substring(0, 40))}」</span>` : ""}
         </div>`).join("");
     } else {
-      rulesHTML = `<div style="padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;color:#166534">未命中任何违规规则</div>`;
+      rulesHTML = `<div style="padding:8px 12px;background:var(--green-bg);border:1px solid rgba(62,207,142,.3);border-radius:8px;font-size:13px;color:var(--green)">未命中任何违规规则</div>`;
     }
 
     // ── 步骤3：最终判定 ──
@@ -984,21 +1557,21 @@ const App = {
         <!-- 步骤1: AI 内容解读 -->
         <div style="margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#6366f1;color:#fff;font-size:12px;font-weight:700">1</span>
-            <span style="font-weight:700;font-size:14px;color:#333">AI 内容解读</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;font-size:12px;font-weight:700">1</span>
+            <span style="font-weight:700;font-size:14px;color:var(--text)">AI 内容解读</span>
           </div>
-          <div style="background:#f8f9fb;border:1px solid #e8eaed;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.8;color:#444">
+          <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.8;color:var(--text-secondary)">
             ${aiError ? `<div style="color:var(--red);margin-bottom:8px">⚠️ AI 分析失败：${this.esc(aiError)}</div>` : ""}
             ${aiInterpretation ? this.esc(aiInterpretation) : (aiError ? '<span style="color:var(--muted)">AI 分析未成功，请联系管理员检查模型配置</span>' : '<span style="color:var(--muted)">AI 正在分析中，请稍候刷新页面查看完整报告。</span>')}
-            ${aiConclusion ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e8eaed"><span style="font-weight:600;color:#333">AI 初步结论：</span>${this.esc(aiConclusion)}</div>` : ""}
+            ${aiConclusion ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><span style="font-weight:600;color:var(--text)">AI 初步结论：</span>${this.esc(aiConclusion)}</div>` : ""}
           </div>
         </div>
 
         <!-- 步骤2: 规则命中情况 -->
         <div style="margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#f97316;color:#fff;font-size:12px;font-weight:700">2</span>
-            <span style="font-weight:700;font-size:14px;color:#333">规则匹配检查</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--electric);color:#fff;font-size:12px;font-weight:700">2</span>
+            <span style="font-weight:700;font-size:14px;color:var(--text)">规则匹配检查</span>
             <span style="font-size:11px;color:var(--muted)">（命中 ${rules.length} 条规则）</span>
           </div>
           ${rulesHTML}
@@ -1008,7 +1581,7 @@ const App = {
         <div style="background:${verdictBg};border:2px solid ${verdictColor}20;border-radius:12px;padding:16px;text-align:center">
           <div style="font-size:36px;margin-bottom:8px">${verdictIcon}</div>
           <div style="font-size:18px;font-weight:700;color:${verdictColor};margin-bottom:6px">${verdictTitle}</div>
-          <div style="font-size:13px;color:#666;line-height:1.6">${actionHint}</div>
+          <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">${actionHint}</div>
         </div>
       </div>`;
     card.style.display = "";
@@ -1212,7 +1785,7 @@ const App = {
         <td>${this.esc(s.region || "")}</td>
         <td style="font-size:12px;color:var(--muted)">${(s.created_at || "").substring(0, 16)}</td>
         <td><span class="badge ${bc[s.status] || 'badge-muted'}">${cn[s.status] || s.status}</span></td>
-        <td><button class="btn sm danger" onclick="event.stopPropagation();App.deleteSub(${s.id})" title="删除">🗑</button></td>
+        <td><button class="btn sm danger" onclick="event.stopPropagation();App.deleteSub(${s.id})" title="删除">删除</button></td>
       </tr>`;
     }).join("") || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">暂无提交</td></tr>';
 
@@ -1262,15 +1835,14 @@ const App = {
     const isMgr = this.me && (this.me.role === "admin" || this.me.role === "manager");
 
     let mediaHTML = (data.media || []).map(m => {
+      const src = m.cos_url || m.local_url || (m.path ? ("/" + String(m.path).replace(/^\/+/, "")) : "");
       if (m.is_video) {
-        // 视频带缩略图（如果有）
-        const thumb = m.thumb ? `/uploads/${m.thumb.split('/').pop().replace('.thumb.jpg','')}.thumb.jpg` : null;
         return `<div style="display:inline-block;position:relative;margin:4px">
-          <video controls preload="metadata" src="/${m.path}" style="max-width:100%;max-height:300px;border-radius:8px;display:block"></video>
+          <video controls preload="metadata" src="${this.esc(src)}" style="max-width:100%;max-height:300px;border-radius:8px;display:block"></video>
           <span style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 6px;border-radius:4px">视频</span>
         </div>`;
       } else {
-        return `<img src="/${m.path}" style="max-width:100%;max-height:300px;border-radius:8px;margin:4px" />`;
+        return `<img src="${this.esc(src)}" style="max-width:100%;max-height:300px;border-radius:8px;margin:4px" />`;
       }
     }).join("");
 
@@ -1623,13 +2195,13 @@ const App = {
 
     const rulesHTML = rules.length > 0
       ? rules.map(r => `
-        <div style="padding:8px 12px;background:#fff;border:1px solid #f0f0f0;border-radius:6px;margin-bottom:4px">
+        <div style="padding:8px 12px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:4px">
           <span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:${sevColor[r.severity]||'#999'}">${sevMap[r.severity]||r.severity}</span>
           <b style="font-size:13px;margin-left:6px">${this.esc(r.rule_name||"")}</b>
-          ${r.matched_text ? `<div style="font-size:11px;color:#666;margin-top:2px">${this.esc(r.matched_text)}</div>` : ""}
+          ${r.matched_text ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${this.esc(r.matched_text)}</div>` : ""}
           ${r.field ? `<span style="font-size:10px;color:var(--muted)">位置：${this.esc(r.field)}</span>` : ""}
         </div>`).join("")
-      : '<div style="font-size:13px;color:#166534;background:#f0fdf4;border-radius:6px;padding:8px 12px">未命中违规规则</div>';
+      : '<div style="font-size:13px;color:var(--green);background:var(--green-bg);border-radius:6px;padding:8px 12px">未命中违规规则</div>';
 
     body.innerHTML = `
       <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1638,20 +2210,20 @@ const App = {
         <span style="font-size:12px;color:var(--muted)">📺 ${this.esc(data.channel_name||"")} · ${this.esc(data.region||"")}</span>
         <span style="font-size:12px;color:var(--muted)">${(data.publish_time||data.created_at||"").substring(0,16)}</span>
       </div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:8px;color:#333">${this.esc(data.caption||"(无描述)")}</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text)">${this.esc(data.caption||"(无描述)")}</div>
       ${ai.interpretation ? `
         <div style="margin-bottom:8px">
-          <div style="font-weight:700;font-size:12px;color:#6366f1;margin-bottom:4px">AI 内容解读</div>
-          <div style="background:#f8f9fb;border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.7;color:#444">${this.esc(ai.interpretation)}</div>
+          <div style="font-weight:700;font-size:12px;color:var(--electric);margin-bottom:4px">AI 内容解读</div>
+          <div style="background:var(--surface-alt);border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.7;color:var(--text-secondary)">${this.esc(ai.interpretation)}</div>
         </div>` : ""}
       ${ai.conclusion ? `
         <div style="margin-bottom:8px">
-          <div style="font-weight:700;font-size:12px;color:#f97316;margin-bottom:4px">AI 结论</div>
-          <div style="background:#fff7ed;border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.7;color:#7c2d12">${this.esc(ai.conclusion)}</div>
+          <div style="font-weight:700;font-size:12px;color:var(--amber);margin-bottom:4px">AI 结论</div>
+          <div style="background:var(--amber-bg);border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.7;color:var(--amber)">${this.esc(ai.conclusion)}</div>
         </div>` : ""}
       ${ai.error ? `<div style="color:#dc2626;font-size:12px;margin-bottom:8px">⚠️ ${this.esc(ai.error)}</div>` : ""}
       <div style="margin-bottom:8px">
-        <div style="font-weight:700;font-size:12px;color:#333;margin-bottom:4px">命中规则（${rules.length}条）</div>
+        <div style="font-weight:700;font-size:12px;color:var(--text);margin-bottom:4px">命中规则（${rules.length}条）</div>
         ${rulesHTML}
       </div>
     `;
@@ -1875,8 +2447,8 @@ const App = {
             const comment = (d.match(/备注:\s*(.+)/) || [,''])[1];
             const isApprove = r.action === '复核通过';
             const badge = isApprove
-              ? '<span class="badge" style="background:#e6f4ea;color:#1e7e34">复核通过</span>'
-              : '<span class="badge" style="background:#fce8e8;color:#c5221f">复核驳回</span>';
+              ? '<span class="badge" style="background:var(--green-bg);color:var(--green)">复核通过</span>'
+              : '<span class="badge" style="background:var(--red-bg);color:var(--danger)">复核驳回</span>';
             return `<tr>
               <td>${r.id}</td>
               <td>${badge}</td>

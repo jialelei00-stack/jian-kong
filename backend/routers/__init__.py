@@ -7,3 +7,4 @@ from .auth import router as auth_router
 from .submissions import router as submissions_router
 from .admin import router as admin_router, usage_router
 from .notifications import router as notifications_router
+from .campaign import router as campaign_router

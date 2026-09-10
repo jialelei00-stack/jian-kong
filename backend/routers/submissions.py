@@ -1,5 +1,7 @@
 """提交审核路由：上传、列表、详情、人工审批。"""
 
+import csv
+import io
 import json
 import os
 import secrets
@@ -7,11 +9,13 @@ import time
 
 from fastapi import APIRouter, Request, HTTPException
 from starlette.datastructures import UploadFile as StarletteUploadFile
-from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, Response
 
 import auth as auth_service
 import queue_manager
 import cos_service
+import database
 from database import db_cursor
 
 router = APIRouter(prefix="/api/submissions", tags=["submissions"])
@@ -50,6 +54,7 @@ async def upload_submission(req: Request):
     caption = (form.get("caption") or "").strip()
     region = (form.get("region") or "").strip()
     display_name = (form.get("display_name") or "").strip()
+    track = (form.get("track") or "").strip()  # 双百战役赛道（可选）
 
     # ── 身份识别 ──
     user = auth_service.try_get_user(req)
@@ -101,7 +106,13 @@ async def upload_submission(req: Request):
         ym = time.strftime("%Y-%m", time.localtime())
         cos_key = f"{big_region}/{sub_region}/{uploader}/{uploader_name}/{content_type}/{ym}/{safe_name}"
         mime = "video/mp4" if is_video else ("image/jpeg" if ext.lower() in (".jpg",".jpeg") else "image/png")
-        cos_url = cos_service.upload(filepath, cos_key, mime)
+        cos_url = await run_in_threadpool(cos_service.upload, filepath, cos_key, mime)
+        if cos_url:
+            # COS 上传成功后删除本地副本，节省磁盘空间（COS 为主存储，本地仅作临时中转）
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
 
         media_list.append({
             "type": "video" if is_video else "image",
@@ -131,8 +142,26 @@ async def upload_submission(req: Request):
 
     queue_manager.enqueue(sub_id)
 
+    # ── 若选择参与双百战役赛道，自动建档（复用 campaign 的统一建档逻辑）──
+    valid_tracks = [t["name"] for t in database.get_tracks()]
+    campaign_code = None
+    if track in valid_tracks:
+        from .campaign import _create_campaign_work
+        work = _create_campaign_work(
+            creator_id=user["id"] if user else None,
+            creator_name=display_name or (user.get("display_name") if user else "") or "",
+            track=track,
+            title=title or caption,
+            url="",
+            media=media_list,
+            region=region,
+            submission_id=sub_id,
+        )
+        campaign_code = work["code"]
+
     resp_data = {"ok": True, "submission_id": sub_id, "status": "pending",
-                 "queue_position": queue_manager.queue_size()}
+                 "queue_position": queue_manager.queue_size(),
+                 "campaign_code": campaign_code}
 
     resp = JSONResponse(resp_data)
     return resp
@@ -173,8 +202,9 @@ def list_submissions(req: Request, page: int = 1, page_size: int = 20,
         where.append("s.status = ?")
         params.append(status)
     if region:
-        where.append("s.region = ?")
-        params.append(region)
+        # 支持大区前缀匹配（region 存储格式为 "大区 / 细分区域"）
+        where.append("(s.region LIKE ? OR s.region LIKE ? OR TRIM(s.region) = ?)")
+        params.extend([f"{region}%", f"{region}/%", region])
     if risk_level:
         where.append("s.risk_level = ?")
         params.append(risk_level)
@@ -185,14 +215,16 @@ def list_submissions(req: Request, page: int = 1, page_size: int = 20,
 
     where_sql = (" WHERE " + " AND ".join(where)) if where else ""
     # 始终用 LEFT JOIN：公开上传的提交 user_id 为 NULL，INNER JOIN 会丢弃
-    join_clause = "LEFT JOIN users u ON u.id = s.user_id"
-    count_from = "submissions s LEFT JOIN users u ON u.id = s.user_id"
+    # campaign_works 关联用于判断是否参与双百战役、以及所属赛道
+    join_clause = "LEFT JOIN users u ON u.id = s.user_id LEFT JOIN campaign_works w ON w.submission_id = s.id"
+    count_from = "submissions s LEFT JOIN users u ON u.id = s.user_id LEFT JOIN campaign_works w ON w.submission_id = s.id"
 
     with db_cursor() as cur:
         cur.execute(f"SELECT COUNT(*) AS c FROM {count_from}{where_sql}", params)
         total = cur.fetchone()["c"]
         cur.execute(
-            f"""SELECT s.*, u.username, u.display_name AS user_display_name, u.region AS user_region
+            f"""SELECT s.*, u.username, u.display_name AS user_display_name, u.region AS user_region,
+                       w.track AS campaign_track, w.code AS campaign_code, w.id AS campaign_work_id
                 FROM submissions s {join_clause}
                 {where_sql} ORDER BY s.id DESC LIMIT ? OFFSET ?""",
             params + [page_size, offset])
@@ -209,6 +241,84 @@ def list_submissions(req: Request, page: int = 1, page_size: int = 20,
             d["region"] = d.get("region")  # submission 自带 region
 
     return {"items": data, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/export")
+def export_submissions(req: Request, status: str = None, region: str = None,
+                       search: str = None, campaign: str = None, track: str = None):
+    """导出提交列表为 CSV（应用与列表一致的筛选）。"""
+    user = auth_service.try_get_user(req)
+    client_ip = req.client.host if req.client else ""
+    where, params = [], []
+
+    if user:
+        if user["role"] == "uploader":
+            where.append("s.user_id = ?")
+            params.append(user["id"])
+        elif user["role"] == "manager":
+            mgr_region = user.get("region", "")
+            if mgr_region:
+                big = mgr_region.split("/")[0].strip() if "/" in mgr_region else mgr_region.strip()
+                where.append("(s.region LIKE ? OR s.region LIKE ? OR TRIM(s.region) = ?)")
+                params.extend([f"{big}%", f"{big}/%", big])
+    elif client_ip:
+        where.append("s.uploader_ip = ?")
+        params.append(client_ip)
+    else:
+        return Response(content="", media_type="text/csv; charset=utf-8")
+
+    if status:
+        where.append("s.status = ?")
+        params.append(status)
+    if region:
+        where.append("(s.region LIKE ? OR s.region LIKE ? OR TRIM(s.region) = ?)")
+        params.extend([f"{region}%", f"{region}/%", region])
+    if search:
+        where.append("(s.title LIKE ? OR s.caption LIKE ? OR s.display_name LIKE ?)")
+        like = f"%{search}%"
+        params.extend([like, like, like])
+    if campaign == "yes":
+        where.append("w.id IS NOT NULL")
+    elif campaign == "no":
+        where.append("w.id IS NULL")
+    if track:
+        where.append("w.track = ?")
+        params.append(track)
+
+    where_sql = (" WHERE " + " AND ".join(where)) if where else ""
+    with db_cursor() as cur:
+        cur.execute(
+            f"""SELECT s.id, s.title, s.caption, s.display_name, s.region, s.status,
+                       s.created_at, u.display_name AS user_display_name,
+                       w.track AS campaign_track, w.code AS campaign_code
+                FROM submissions s
+                LEFT JOIN users u ON u.id = s.user_id
+                LEFT JOIN campaign_works w ON w.submission_id = s.id
+                {where_sql} ORDER BY s.id DESC""",
+            params,
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+
+    status_cn = {"pending": "待审核", "analyzing": "分析中", "approved": "已通过",
+                 "rejected": "已驳回", "manual_review": "待复核"}
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["ID", "标题", "提交者", "区域", "是否参战", "赛道", "状态", "提交时间"])
+    for r in rows:
+        name = r["display_name"] or r["user_display_name"] or "访客"
+        writer.writerow([
+            r["id"], (r["title"] or r["caption"] or "")[:100], name, r["region"],
+            "是" if r["campaign_track"] else "否", r["campaign_track"] or "-",
+            status_cn.get(r["status"], r["status"]), (r["created_at"] or ""),
+        ])
+
+    csv_str = buf.getvalue()
+    return Response(
+        content="\ufeff" + csv_str,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=submissions_export.csv"},
+    )
 
 
 @router.get("/{submission_id}")

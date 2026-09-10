@@ -332,26 +332,39 @@ def _classify_content(media: list, caption: str, transcript: str, ocr: str) -> s
 
 
 def _call_model(cfg: Dict[str, Any], messages: list) -> str:
-    """调用 OpenAI 兼容模型，流式拼接文本输出。"""
+    """调用 OpenAI 兼容模型，流式拼接文本输出（带限流退避重试）。"""
+    import time as _time
     from openai import OpenAI
 
     client = OpenAI(api_key=cfg["api_key"], base_url=cfg["base_url"])
-    # Qwen-Omni 强制流式；普通模型流式同样兼容。
-    stream = client.chat.completions.create(
-        model=cfg["model"],
-        messages=messages,
-        stream=True,
-        temperature=0,
-    )
-    buf = []
-    for chunk in stream:
+    last_err: Optional[Exception] = None
+    # 并发突发会触发「Request rate increased too quickly」限流，指数退避重试
+    for attempt in range(4):
         try:
-            delta = chunk.choices[0].delta
-            if getattr(delta, "content", None):
-                buf.append(delta.content)
-        except Exception:
-            continue
-    return "".join(buf)
+            # Qwen-Omni 强制流式；普通模型流式同样兼容。
+            stream = client.chat.completions.create(
+                model=cfg["model"],
+                messages=messages,
+                stream=True,
+                temperature=0,
+            )
+            buf = []
+            for chunk in stream:
+                try:
+                    delta = chunk.choices[0].delta
+                    if getattr(delta, "content", None):
+                        buf.append(delta.content)
+                except Exception:
+                    continue
+            return "".join(buf)
+        except Exception as e:
+            last_err = e
+            msg = str(e).lower()
+            if any(k in msg for k in ("rate", "limit", "429", "too many", "throttl", "overloaded")):
+                _time.sleep(min(20, 1.5 * (2 ** attempt)))
+                continue
+            raise
+    raise last_err
 
 
 def _empty_review(model: str = "", error: Optional[str] = None) -> Dict[str, Any]:
@@ -423,6 +436,50 @@ def _truthy(v: Any) -> bool:
     if isinstance(v, str):
         return v.strip().lower() in ("true", "1", "yes", "y", "是", "违规", "命中")
     return True  # 未提供则默认按真违规处理，再由依据否定检测兜底
+
+
+_BRAND_TYPO_WORDS = [
+    "南福", "南符", "南浮", "南扶", "南乎", "南弗",
+    "丰篮", "益园", "园圆", "传印", "益元", "一元",
+    "丰蓝1好", "丰蓝一号",
+]
+
+
+def _is_brand_typo_hallucination(rule_name: str, full_text: str) -> bool:
+    """品牌名错误规则的幻觉过滤。
+
+    AI 常把「正确的品牌名」误判为错别字（例如原文明明写的是「南孚」，
+    却报告「将南孚误写为南福」）。若原文文本里根本没有那个错字，这条判定就是幻觉，应剔除。
+    """
+    if not rule_name or "品牌名" not in rule_name:
+        return False
+    if not full_text or full_text == "（无文案）":
+        return False  # 无文本可校验时交给人工，不自动过滤
+    if any(w in full_text for w in _BRAND_TYPO_WORDS):
+        return False  # 原文里确实出现了品牌错字 → 不是幻觉，保留
+    return True
+
+
+_TYPO_WRONG_RE = re.compile(
+    r"([\u4e00-\u9fa5A-Za-z0-9]{1,6})['\"「『]?[误错]写(?:成|为)['\"「『]?([\u4e00-\u9fa5A-Za-z0-9]{1,6})"
+)
+
+
+def _is_typo_self_contradiction(evidence: str) -> bool:
+    """错别字自相矛盾过滤。
+
+    AI 有时会输出「将 X 误写为 X」这类前后相同的依据（例如把正确的「南孚」说成误写为「南孚」），
+    说明它根本没有指出任何实际错字，属于幻觉，应剔除。
+    """
+    e = (evidence or "").strip()
+    if not e:
+        return False
+    for m in _TYPO_WRONG_RE.finditer(e):
+        left = m.group(1).strip()
+        right = m.group(2).strip()
+        if left and right and left == right:
+            return True
+    return False
 
 
 def audit(content: Dict[str, Any], rules: List[Dict[str, Any]],
@@ -784,6 +841,13 @@ def audit(content: Dict[str, Any], rules: List[Dict[str, Any]],
         if "不违规" in evidence:
             continue
         if "合规" in evidence and ("未" in evidence or "无" in evidence or "没有" in evidence):
+            continue
+        # 第4道：品牌名错误幻觉过滤——AI 把正确品牌名误判为错字时剔除
+        rule_name = str(v.get("rule_name") or "")
+        if _is_brand_typo_hallucination(rule_name, full_text):
+            continue
+        # 第5道：错别字自相矛盾过滤——"X误写为X"等于没写错，属幻觉
+        if _is_typo_self_contradiction(evidence):
             continue
         sev = str(v.get("severity") or "medium").lower()
         if sev not in valid_sev:

@@ -3,59 +3,88 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>品牌内容合规管控系统</title>
-<link rel="stylesheet" href="/shared.css?v=2" />
-<link rel="stylesheet" href="/style.css?v=2" />
+<title>南孚在地营销</title>
+<link rel="stylesheet" href="/shared.css?v=4" />
+<link rel="stylesheet" href="/style.css?v=4" />
+<script src="/echarts.min.js"></script>
 <style>
 /* ── 布局 ── */
-html, body { height: 100%; overflow: hidden; background: #f5f7fa; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); }
 body { display: flex; }
 #main { background: transparent; }
 
     /* 侧边栏 */
     #sidebar {
       width: 220px; min-width: 220px; display: none; flex-direction: column;
-      background: #fff; border-right: 1px solid var(--border-light);
+      background: var(--surface); border-right: 1px solid var(--border-light);
       z-index: 40; height: 100vh; position: fixed; left: 0; top: 0;
     }
 #notifBell { display: none; }
-.side-logo { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.side-logo h2 { font-size: 16px; color: var(--primary-dark); margin: 0; white-space: nowrap; }
-.side-logo .ver { font-size: 11px; color: var(--muted-light); display: block; }
-.side-user { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 12px; }
-.side-user .name { color: var(--text); font-weight: 600; }
-.side-user .role { color: var(--muted); margin-top: 2px; }
-.side-nav { flex: 1; padding: 6px 0; }
-.side-nav a {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; color: var(--muted); font-size: 14px;
-  text-decoration: none; transition: all var(--transition);
-  border-left: 3px solid transparent; cursor: pointer;
+.side-logo { padding: 16px 14px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.side-brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.side-brand-mark {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  background: linear-gradient(160deg, var(--brand-light), var(--brand-dark));
+  box-shadow: 0 5px 14px -5px rgba(37,99,235,.55);
 }
+.side-brand-mark .ic { width: 20px; height: 20px; }
+.side-brand-text { min-width: 0; }
+.side-brand-text h2 { font-size: 15px; color: var(--primary-dark); margin: 0; white-space: nowrap; letter-spacing: .2px; }
+.side-brand-text .ver { font-size: 11px; color: var(--muted-light); display: block; margin-top: 1px; }
+.side-user { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 12px; display: flex; align-items: center; gap: 10px; }
+.side-avatar {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, var(--brand-light), var(--brand-dark));
+  color: #fff; font-size: 15px; font-weight: 600;
+}
+.side-user-meta { min-width: 0; display: flex; flex-direction: column; }
+.side-user .name { color: var(--text); font-weight: 600; font-size: 13px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-user .role { color: var(--text-secondary); margin-top: 2px; font-size: 11px; }
+.side-nav { flex: 1; padding: 6px 0; }
+.side-nav a { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: var(--text-secondary); font-size: 14px; text-decoration: none; transition: all var(--transition); border-left: 3px solid transparent; cursor: pointer; }
 .side-nav a:hover { background: var(--primary-bg); color: var(--primary); }
 .side-nav a.active { color: var(--primary); border-left-color: var(--primary); background: var(--primary-bg); }
-.side-nav a .icon { font-size: 16px; width: 20px; text-align: center; }
+.side-nav a .icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.side-nav a .icon .ic { width: 18px; height: 18px; }
+.side-nav a:hover .icon { background: var(--brand-bg); color: var(--brand); }
+.side-nav a.active .icon { background: var(--brand); color: #fff; }
 .side-nav .sep { height: 1px; background: var(--border); margin: 6px 12px; }
+.side-nav .nav-group { padding: 12px 16px 4px; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .5px; }
+.side-nav .nav-group:first-child { padding-top: 8px; }
 .side-bottom { padding: 6px 0; border-top: 1px solid var(--border); }
 .side-bottom a {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; color: var(--muted); font-size: 14px;
+  padding: 10px 16px; color: var(--text-secondary); font-size: 14px;
   text-decoration: none; cursor: pointer; transition: all var(--transition);
   border-left: 3px solid transparent;
 }
 .side-bottom a:hover { background: var(--primary-bg); color: var(--primary); }
 .side-bottom a.active { color: var(--primary); border-left-color: var(--primary); background: var(--primary-bg); }
 .side-bottom .sep { height: 1px; background: var(--border); margin: 4px 12px; }
-.side-bottom a.exit { color: var(--muted); font-size: 12px; }
+.side-bottom a.exit { color: var(--text-secondary); font-size: 12px; }
 .side-bottom a.exit:hover { color: var(--red); }
 
-/* ── 消息通知中心（独立 fixed 层）── */
+/* ── 顶部栏 ── */
+.mgr-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px; padding: 0 24px;
+  background: var(--surface); border-bottom: 1px solid var(--border-light);
+  position: sticky; top: 0; z-index: 90;
+}
+.mgr-topbar-title { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -.01em; }
+.mgr-topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* ── 消息通知中心（在顶栏内）── */
 #notifBell {
-  position: fixed; top: 14px; right: 24px; z-index: 2000;
-  cursor: pointer; font-size: 22px; line-height: 1;
+  position: relative; z-index: auto; cursor: pointer; font-size: 20px; line-height: 1;
   background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
-  padding: 6px 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06);
-  user-select: none;
+  padding: 6px 10px; user-select: none;
 }
 #notifBell:hover { background: var(--primary-bg); }
 #notifBadge {
@@ -65,7 +94,7 @@ body { display: flex; }
   font-weight: 700; line-height: 1.4;
 }
 #notifPanel {
-  display: none; position: fixed; top: 56px; right: 24px; z-index: 2000;
+  display: none; position: fixed; top: 60px; right: 24px; z-index: 2000;
   min-width: 300px; max-width: 380px; max-height: 380px; overflow-y: auto;
   background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
   box-shadow: 0 6px 30px rgba(0,0,0,0.12);
@@ -119,12 +148,11 @@ body { display: flex; }
 @media (max-width: 1100px) {
   #sidebar { width: 64px; min-width: 64px; overflow: hidden; }
   .side-logo { padding: 14px 10px; justify-content: center; }
-  .side-logo h2 { font-size: 0; }
-  .side-logo h2::before { content: "●"; font-size: 20px; color: var(--primary-dark); }
-  .side-logo .ver { display: none; }
+  .side-brand-text { display: none; }
+  .side-brand-mark { width: 34px; height: 34px; }
   .side-user { display: none; }
   .side-bottom a { padding: 10px; justify-content: center; }
-  .side-bottom a .icon, .side-nav a .icon { font-size: 20px; }
+  .side-bottom a .icon, .side-nav a .icon { width: 22px; height: 22px; }
   .side-nav a { padding: 12px 0; justify-content: center; }
   .side-nav a span:not(.icon) { display: none; }
   .side-bottom a span:not(.icon) { display: none; }
@@ -140,9 +168,9 @@ body { display: flex; }
     position: relative;
   }
   .side-logo { flex: 1; border-bottom: none; padding: 8px 14px; justify-content: space-between; }
-  .side-logo h2 { font-size: 14px; }
-  .side-logo h2::before { content: ""; }
-  .side-logo .ver { display: none; }
+  .side-brand-text h2 { font-size: 14px; }
+  .side-brand-text .ver { display: none; }
+  .side-brand-mark { width: 30px; height: 30px; border-radius: 8px; }
   .side-user, .side-bottom { display: none; }
   .side-nav { display: none; flex-direction: row; width: 100%; overflow-x: auto; padding: 0 4px; border-top: 1px solid var(--border); white-space: nowrap; }
   .side-nav.open { display: flex; }
@@ -154,22 +182,127 @@ body { display: flex; }
   #main { width: 100%; height: auto; flex: 1; margin-left: 0; }
   .pane { padding: 10px 8px; }
 }
+
+/* ── 全国战况（区域业绩）── */
+#rpBreadcrumb { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+#rpBreadcrumb a { color: var(--brand); font-weight: 600; }
+#rpBreadcrumb a:hover { color: var(--brand-dark); text-decoration: underline; }
+#rpBreadcrumb .sep { color: var(--text-placeholder); }
+
+.rp-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 18px; }
+.rp-kpis.col-4 { grid-template-columns: repeat(4, 1fr); }
+.rp-kpi {
+  display: flex; align-items: center; gap: 13px;
+  background: var(--surface); border: 1px solid var(--border-light);
+  border-radius: 14px; padding: 15px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.rp-kpi:hover { transform: translateY(-2px); border-color: var(--border); box-shadow: var(--shadow-lg); }
+.rp-kpi-icon {
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-soft, var(--brand-bg)); color: var(--accent, var(--brand));
+}
+.rp-kpi-icon .ic { width: 22px; height: 22px; }
+.rp-kpi-main { min-width: 0; }
+.rp-kpi-num { font-size: 25px; font-weight: 800; color: var(--text); line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.rp-kpi-lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ── 全国战况图（地图 + 大区战功榜）── */
+.warzone-wrap { display: flex; gap: 16px; align-items: stretch; }
+.warzone-map {
+  position: relative; flex: 1; min-width: 0;
+  height: calc(100vh - 250px); min-height: 560px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid var(--border-light); border-radius: 16px; padding: 8px;
+  box-shadow: var(--shadow-sm);
+}
+.map-title {
+  position: absolute; left: 16px; top: 16px; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.92); border: 1px solid var(--border-light);
+  border-radius: 10px; padding: 8px 12px; box-shadow: var(--shadow-xs);
+  pointer-events: none;
+}
+.map-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px var(--brand-bg); }
+.map-title b { font-size: 13px; color: var(--text); }
+.map-title span { font-size: 11px; color: var(--muted); }
+
+.warzone-rank {
+  width: 340px; flex-shrink: 0;
+  background: var(--surface); border: 1px solid var(--border-light);
+  border-radius: 16px; padding: 18px 16px; box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column;
+}
+.wz-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.wz-head h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.wz-head p { margin: 3px 0 0; font-size: 12px; color: var(--muted); }
+.wz-badge { font-size: 11px; font-weight: 600; color: var(--brand); background: var(--brand-bg); border-radius: 999px; padding: 3px 10px; }
+.wz-list { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.wz-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; border-radius: 12px; cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+.wz-row:hover { background: var(--surface-hover); transform: translateX(2px); }
+.wz-idx {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+  background: var(--surface-alt); color: var(--text-secondary);
+  font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+.wz-idx.gold { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #fff; box-shadow: 0 3px 8px -2px rgba(245,158,11,.5); }
+.wz-idx.silver { background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: #fff; }
+.wz-idx.bronze { background: linear-gradient(135deg, #e7b98a, #d97706); color: #fff; }
+.wz-main { flex: 1; min-width: 0; }
+.wz-name { font-size: 13px; font-weight: 700; color: var(--text); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.wz-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wz-name em { font-style: normal; font-size: 12px; color: var(--brand); font-weight: 700; flex-shrink: 0; }
+.wz-bar { height: 6px; background: var(--border-light); border-radius: 999px; margin-top: 6px; overflow: hidden; }
+.wz-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--brand), var(--brand-light)); border-radius: 999px; transition: width .6s cubic-bezier(.22,.61,.36,1); }
+.wz-row.gold .wz-bar i { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.wz-sub { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.wz-val { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.wz-val b { font-size: 18px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.wz-val small { font-size: 10px; color: var(--muted); }
+.wz-tip { margin-top: 12px; padding-top: 12px; font-size: 12px; color: var(--muted); text-align: center; border-top: 1px dashed var(--border-light); }
+
+.map-legend {
+  position: absolute; left: 14px; bottom: 14px; z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  background: rgba(255,255,255,.95); border: 1px solid var(--border-light);
+  border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow); max-width: 360px;
+  backdrop-filter: blur(6px);
+}
+.lg-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; }
+.lg-item i { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+.lg-item em { font-style: normal; font-size: 11px; color: var(--muted); }
+
+.map-zoom { position: absolute; right: 14px; top: 14px; z-index: 5; display: flex; flex-direction: column; gap: 6px; }
+.map-zoom button {
+  width: 34px; height: 34px; border: 1px solid var(--border-light); background: rgba(255,255,255,.95);
+  border-radius: 9px; font-size: 16px; line-height: 1; color: var(--text); cursor: pointer;
+  box-shadow: var(--shadow-xs); transition: all var(--transition);
+}
+.map-zoom button:hover { background: var(--brand-bg); border-color: var(--brand); color: var(--brand); }
+
+@media (max-width: 768px) {
+  .warzone-wrap { flex-direction: column; }
+  .warzone-map { height: 380px; }
+  .warzone-rank { width: auto; }
+  .rp-kpis, .rp-kpis.col-4 { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
 
 <!-- 未登录提示条（仅无 auth 时显示）-->
-<div id="guestBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;padding:8px 16px;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);letter-spacing:.3px">
-  <span style="opacity:.85">内容上传 — 输入姓名和区域即可开始</span>&nbsp;&nbsp;
+<div id="guestBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;padding:8px 16px;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);letter-spacing:.3px">
+  <span style="opacity:.85">内容审核 — 输入姓名和区域即可开始</span>&nbsp;&nbsp;
   <a href="/login.html" style="color:#fff;background:rgba(255,255,255,.2);padding:4px 14px;border-radius:20px;font-size:12px;text-decoration:none;transition:background .2s">管理人员登录</a>
 </div>
 
 <!-- ══════════ 侧边栏 ══════════ -->
-<!-- 消息通知中心（独立层，不受侧边栏裁剪影响）-->
-<div id="notifBell" onclick="App.toggleNotif()" title="消息通知">
-  🔔
-  <span id="notifBadge">0</span>
-</div>
 <div id="notifPanel">
   <div class="nhead">消息提醒 <button onclick="App.clearNotif()">全部已读</button></div>
   <div id="notifList"></div>
@@ -178,20 +311,29 @@ body { display: flex; }
 
 <aside id="sidebar">
   <div class="side-logo">
-    <div><h2>● 内容合规管控</h2><span class="ver">品牌内容审核系统</span></div>
-    <button class="burger" onclick="document.getElementById('sideNav').classList.toggle('open')" title="菜单">☰</button>
+    <div class="side-brand">
+      <span class="side-brand-mark"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg></span>
+      <span class="side-brand-text"><h2>南孚在地营销</h2></span>
+    </div>
+    <button class="burger" onclick="document.getElementById('sideNav').classList.toggle('open')" title="菜单"><svg class="ic" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
   </div>
   <nav class="side-nav" id="sideNav">
-    <a data-view="subdash" class="active" data-role="manager,admin"><span class="icon">📋</span><span>提交审核</span></a>
-    <a data-view="upload" data-role="all"><span class="icon">📤</span><span>内容上传</span></a>
-    <div class="sep" data-role="manager,admin"></div>
-    <a data-view="dashboard" data-role="manager,admin"><span class="icon">📊</span><span>看板总览</span></a>
-    <a data-view="channels" data-role="manager,admin"><span class="icon">📺</span><span>视频号管理</span></a>
-    <a data-view="rules" data-role="manager,admin"><span class="icon">📋</span><span>合规规则</span></a>
-    <a data-view="modelcfg" data-role="manager,admin"><span class="icon">⚙️</span><span>模型配置</span></a>
-    <a data-view="review" data-role="manager,admin"><span class="icon">🔍</span><span>审核管理</span></a>
-    <a data-view="admin" data-role="admin"><span class="icon">👥</span><span>用户管理</span></a>
-    <a data-view="usage_log" data-role="admin"><span class="icon">📝</span><span>使用日志</span></a>
+    <div class="nav-group" data-role="all">双百战役</div>
+    <a data-view="regionperf" class="active" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></span><span>全国战况</span></a>
+    <a href="/campaign.html" data-role="all"><span class="icon"><svg class="ic" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span><span>战功榜单 · 驾驶舱</span></a>
+    <a data-view="subdash" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span><span>提交审核</span></a>
+    <a data-view="upload" data-role="all"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg></span><span>内容审核</span></a>
+
+    <div class="nav-group" data-role="manager,admin">内容合规</div>
+    <a data-view="dashboard" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>看板总览</span></a>
+    <a data-view="channels" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg></span><span>视频号管理</span></a>
+    <a data-view="review" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><span>审核管理</span></a>
+    <a data-view="rules" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg></span><span>合规规则</span></a>
+    <a data-view="modelcfg" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="18" r="2"/></svg></span><span>模型配置</span></a>
+
+    <div class="nav-group" data-role="admin">系统</div>
+    <a data-view="admin" data-role="admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>用户管理</span></a>
+    <a data-view="usage_log" data-role="admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/></svg></span><span>使用日志</span></a>
   </nav>
   <div class="side-bottom" id="sideBottom">
     <div class="side-user" id="sideUser"><div class="name">未登录</div><div class="role"></div></div>
@@ -203,6 +345,18 @@ body { display: flex; }
 <!-- ══════════ 主内容区 ══════════ -->
 <div id="main">
 
+<!-- 顶部栏 -->
+<header class="mgr-topbar" id="mgrTopbar">
+  <div class="mgr-topbar-title" id="viewTitle">看板总览</div>
+  <div class="mgr-topbar-right">
+    <div id="notifBell" onclick="App.toggleNotif()" title="消息通知">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <span id="notifBadge">0</span>
+    </div>
+    <button class="btn sm" onclick="App.logout()">退出登录</button>
+  </div>
+</header>
+
 <!-- 看板总览 -->
 <section id="pane-dashboard" class="pane active">
   <div class="toolbar">
@@ -213,10 +367,10 @@ body { display: flex; }
   <div class="stat-grid is-super" id="statGridSub"></div>
   <!-- 采集内容明细 — 仅管理员可见（监控系统数据）-->
   <div class="card" style="margin-top:16px">
-    <h2>📡 采集内容明细 <span style="font-size:12px;color:var(--muted);font-weight:normal">（微信视频号监控采集）</span></h2>
+    <h2>采集内容明细 <span style="font-size:12px;color:var(--muted);font-weight:normal">（微信视频号监控采集）</span></h2>
     <div class="toolbar">
       <select id="fdChannel" onchange="App.renderFeed(1,'channel')"><option value="">全部视频号</option></select>
-      <select id="fdStatus" onchange="App.renderFeed(1,'status')"><option value="">全部状态</option><option value="red">🔴 违规</option><option value="yellow">🟡 疑似</option><option value="green">🟢 合规</option></select>
+      <select id="fdStatus" onchange="App.renderFeed(1,'status')"><option value="">全部状态</option><option value="red">违规</option><option value="yellow">疑似</option><option value="green">合规</option></select>
       <select id="fdRegionBig" onchange="App.onFdRegionBig()"><option value="">全部大区</option></select>
       <select id="fdRegionSub" onchange="App.renderFeed(1,'region')"><option value="">全部区域</option></select>
       <select id="fdSort" onchange="App.renderFeed(1,'sort')">
@@ -245,6 +399,16 @@ body { display: flex; }
   </div>
 </section>
 
+<!-- 区域业绩（三级下钻：大区 → 细分区域 → 作品/线索） -->
+<section id="pane-regionperf" class="pane">
+  <div class="toolbar">
+    <span id="rpBreadcrumb">全部大区</span>
+    <span style="flex:1"></span>
+    <button class="btn sm" onclick="App.loadRegionOverview()">刷新</button>
+  </div>
+  <div id="rpBody"></div>
+</section>
+
 <!-- 提交审核看板 -->
 <section id="pane-subdash" class="pane">
   <div id="subdashContext" style="font-size:13px;color:var(--muted);margin-bottom:12px;padding:8px 12px;background:var(--primary-bg);border-radius:8px;display:none"></div>
@@ -254,17 +418,24 @@ body { display: flex; }
     <div class="risk-bars" id="subdashRiskBars"></div>
   </div>
   <div class="card" style="margin-top:16px">
-    <h2>📋 近期提交 <span style="font-size:12px;color:var(--muted);font-weight:normal">（内容上传提交的数据）</span></h2>
+    <h2>近期提交 <span style="font-size:12px;color:var(--muted);font-weight:normal">（内容上传提交的数据）</span></h2>
     <div class="toolbar">
       <select id="subdashFilterStatus" onchange="App.loadSubDashboard()">
         <option value="">全部状态</option><option value="pending">待审核</option><option value="analyzing">分析中</option>
         <option value="manual_review">待复核</option><option value="approved">已通过</option><option value="rejected">已驳回</option>
       </select>
+      <select id="subdashCampaign" onchange="App._loadSubdashTable(1)">
+        <option value="">全部（是否参战）</option><option value="yes">参加战役</option><option value="no">未参加</option>
+      </select>
+      <select id="subdashTrack" onchange="App._loadSubdashTable(1)"><option value="">全部赛道</option></select>
+      <select id="subdashRegionBig" onchange="App.onSubdashRegionBig()"><option value="">全部大区</option></select>
+      <select id="subdashRegionSub" onchange="App._loadSubdashTable(1)"><option value="">全部区域</option></select>
       <input id="subdashSearch" placeholder="搜索标题/提交者..." oninput="App._loadSubdashTable(1)" style="width:150px;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px">
       <span id="subdashCount" style="font-size:12px;color:var(--muted)"></span>
+      <button class="btn sm" onclick="App.exportSubmissions()">导出</button>
       <button class="btn sm" onclick="App.loadSubDashboard()">刷新</button>
     </div>
-    <div class="table-scroll"><table class="sub-table"><thead><tr><th>标题/内容</th><th>提交者</th><th>区域</th><th>时间</th><th>状态</th></tr></thead><tbody id="subdashTbody"></tbody></table></div>
+    <div class="table-scroll"><table class="sub-table"><thead><tr><th>标题/内容</th><th>提交者</th><th>区域</th><th>赛道</th><th>时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="subdashTbody"></tbody></table></div>
     <div class="pagination" id="subdashPagination"></div>
   </div>
 </section>
@@ -279,85 +450,153 @@ body { display: flex; }
 
 <!-- 内容上传 -->
 <section id="pane-upload" class="pane">
-  <div style="max-width:540px;margin:0 auto;padding:40px 0">
+  <div class="upload-wrap">
+
+    <!-- 两个功能入口 Tab -->
+    <div class="seg">
+      <button id="tabUploadBtn" class="on" onclick="App.switchUploadTab('upload')">内容审核</button>
+      <button id="tabT7Btn" onclick="App.switchUploadTab('t7')">双百战役</button>
+    </div>
 
     <!-- 上传卡片 -->
-    <div id="uploadCard" style="background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)">
+    <div id="uploadCard" class="upload-card">
       <!-- 头部 -->
-      <div style="text-align:center;margin-bottom:28px">
-        <div style="display:inline-block;width:56px;height:56px;background:linear-gradient(135deg,#e8f0fe,#d2e3fc);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-          <span style="font-size:28px">📤</span>
-        </div>
-        <h2 style="font-size:22px;font-weight:700;margin:0 0 6px;color:#1a1a1a;letter-spacing:-.3px">内容合规审核</h2>
-        <p style="color:#888;font-size:13px;margin:0;line-height:1.5">上传内容，AI 自动检测合规风险，即时反馈结果</p>
+      <div class="upload-head">
+        <div class="mark"><svg class="ic" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg></div>
+        <h2>南孚在地营销</h2>
+        <p>上传内容，AI 自动检测合规风险，即时反馈结果</p>
       </div>
 
       <!-- 姓名 + 区域 -->
       <div id="guestFields">
-        <div style="margin-bottom:16px">
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#444;text-transform:uppercase;letter-spacing:.5px">您的姓名 <span style="color:#ea4335">*</span></label>
-          <input type="text" id="upName" placeholder="请输入姓名" style="width:100%;height:46px;padding:0 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:15px;background:#fafafa;color:#333;box-sizing:border-box;transition:all .2s;outline:none" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'">
+        <div class="field">
+          <label>您的姓名 <span class="req">*</span></label>
+          <input type="text" id="upName" class="field-input" placeholder="请输入姓名">
         </div>
-        <div style="margin-bottom:20px">
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#444;text-transform:uppercase;letter-spacing:.5px">所属区域 <span style="color:#ea4335">*</span></label>
-          <div style="display:flex;gap:10px">
-            <select id="upBigRegion" onchange="App.onGuestBigChange()" style="flex:1;height:46px;padding:0 12px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;background:#fafafa;color:#333;box-sizing:border-box;outline:none;cursor:pointer;transition:all .2s;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23999%22 stroke-width=%222%22><path d=%22M6 9l6 6 6-6%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:32px" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'">
-              <option value="">选择大区</option>
-            </select>
-            <select id="upSubRegion" style="flex:1;height:46px;padding:0 12px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;background:#fafafa;color:#333;box-sizing:border-box;outline:none;cursor:pointer;transition:all .2s;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23999%22 stroke-width=%222%22><path d=%22M6 9l6 6 6-6%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;padding-right:32px" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'">
-              <option value="">选择区域</option>
-            </select>
+        <div class="field">
+          <label>所属区域 <span class="req">*</span></label>
+          <div class="field-row">
+            <select id="upBigRegion" class="field-select" onchange="App.onGuestBigChange()"><option value="">选择大区</option></select>
+            <select id="upSubRegion" class="field-select"><option value="">选择区域</option></select>
           </div>
         </div>
       </div>
 
       <!-- 标题 -->
-      <div style="margin-bottom:16px">
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#444;text-transform:uppercase;letter-spacing:.5px">标题</label>
-        <input type="text" id="upTitle" placeholder="给内容起个名字" style="width:100%;height:46px;padding:0 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:15px;background:#fafafa;color:#333;box-sizing:border-box;transition:all .2s;outline:none" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'">
+      <div class="field">
+        <label>标题</label>
+        <input type="text" id="upTitle" class="field-input" placeholder="给内容起个名字">
       </div>
 
       <!-- 文案 -->
-      <div style="margin-bottom:20px">
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#444;text-transform:uppercase;letter-spacing:.5px">文案描述</label>
-        <textarea id="upCaption" rows="3" placeholder="输入内容描述、文案、口播等..." style="width:100%;padding:14px 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:15px;background:#fafafa;color:#333;resize:vertical;box-sizing:border-box;font-family:inherit;line-height:1.6;transition:all .2s;outline:none" onfocus="this.style.borderColor='#1a73e8';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(26,115,232,.1)'" onblur="this.style.borderColor='#e0e0e0';this.style.background='#fafafa';this.style.boxShadow='none'"></textarea>
+      <div class="field">
+        <label>文案描述</label>
+        <textarea id="upCaption" rows="3" class="field-textarea" placeholder="输入内容描述、文案、口播等..."></textarea>
+      </div>
+
+      <!-- 参与双百战役赛道 -->
+      <div class="field">
+        <label>参与双百战役赛道</label>
+        <select id="upTrack" class="field-select">
+          <option value="益圆/传应品宣" selected>益圆/传应品宣</option>
+          <option value="转假宣传">转假宣传</option>
+          <option value="足球小将">足球小将</option>
+          <option value="门锁场景">门锁场景</option>
+          <option value="">不参与双百战役</option>
+        </select>
+        <p class="hint">默认参与双百战役，可切换赛道或选择「不参与」；作品将自动建档，T+7 天回填数据即可参与战功排行</p>
       </div>
 
       <!-- 文件上传 -->
-      <div id="dropZone" style="border:2px dashed #c8d6e5;border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfc;margin-bottom:6px"
-           onmouseenter="this.style.borderColor='#1a73e8';this.style.background='#f0f6ff'"
-           onmouseleave="this.style.borderColor='#c8d6e5';this.style.background='#fafbfc'">
-        <div style="font-size:36px;margin-bottom:8px">☁️</div>
-        <p style="margin:0;font-size:14px;color:#666;font-weight:500">点击选择文件 或 拖拽到此处</p>
-        <p style="margin:4px 0 0;font-size:12px;color:#aaa">支持视频 / 图片，单文件最大 500MB</p>
+      <div id="dropZone" class="upload-drop">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg>
+        <p>点击选择文件 或 拖拽到此处</p>
+        <p>支持视频 / 图片，单文件最大 500MB</p>
       </div>
       <div id="fileList" style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0"></div>
       <input type="file" id="fileInput" multiple accept="video/*,image/*" style="display:none">
 
       <!-- 提交按钮 -->
-      <button class="btn primary" id="btnUpload" onclick="App.doUpload()" style="width:100%;height:50px;font-size:16px;font-weight:600;border-radius:12px;margin-top:18px;background:linear-gradient(135deg,#1a73e8,#1557b0);border:none;color:#fff;cursor:pointer;transition:all .2s;letter-spacing:.3px;box-shadow:0 4px 14px rgba(26,115,232,.3)"
-              onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(26,115,232,.4)'"
-              onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(26,115,232,.3)'">提交审核</button>
-      <p id="uploadMsg" style="text-align:center;font-size:13px;color:#999;margin:12px 0 0;min-height:20px"></p>
+      <button class="upload-submit" id="btnUpload" onclick="App.doUpload()">提交审核</button>
+      <p id="uploadMsg" style="text-align:center;font-size:13px;color:var(--muted);margin:12px 0 0;min-height:20px"></p>
 
       <!-- 队列状态 -->
-      <div id="queueStatus" style="display:none;margin-top:10px;padding:10px 16px;background:#f5f7fa;border-radius:10px;font-size:12px;color:#888">
+      <div id="queueStatus" style="display:none;margin-top:10px;padding:10px 16px;background:var(--surface-alt);border-radius:10px;font-size:12px;color:var(--muted)">
         <span id="qsText"></span>
-        <div style="margin-top:6px;height:4px;background:#e8ecf1;border-radius:2px;overflow:hidden">
-          <div id="qsFill" style="height:100%;width:0;background:linear-gradient(90deg,#1a73e8,#4285f4);transition:width .5s;border-radius:2px"></div>
+        <div style="margin-top:6px;height:4px;background:var(--border-light);border-radius:2px;overflow:hidden">
+          <div id="qsFill" style="height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-light));transition:width .5s;border-radius:2px"></div>
         </div>
       </div>
     </div>
 
+    <!-- 回传 T+7 数据卡片 -->
+    <div id="t7Card" class="upload-card" style="display:none">
+      <div class="upload-head">
+        <div class="mark"><svg class="ic" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg></div>
+        <h2>双百战役</h2>
+        <p>发布满 7 天后，回传播放 / 留存 / 互动数据，系统自动打分并计入战功</p>
+      </div>
+
+      <div class="field">
+        <label>您的姓名</label>
+        <input type="text" id="t7Name" class="field-input" placeholder="请输入姓名">
+      </div>
+
+      <button class="upload-secondary" onclick="App.queryPending()">按姓名查询待回传作品</button>
+      <div id="pendingList" style="margin-top:10px"></div>
+
+      <div class="upload-divider"></div>
+      <p class="upload-subtitle">或直接粘贴一稿一码回传</p>
+      <div class="field-row">
+        <input id="t7Code" class="field-input" placeholder="粘贴一稿一码">
+        <button class="upload-submit" style="width:auto;padding:0 20px;margin-top:0" onclick="App.goT7()">回传</button>
+      </div>
+
+      <!-- 内嵌回传表单 -->
+      <div id="t7Form" class="t7-form" style="display:none">
+        <div class="t7-code">回传作品：<code id="t7FormCode"></code></div>
+        <div class="field-row">
+          <input id="t7Plays" type="number" class="field-input" placeholder="自然播放量">
+          <input id="t7R3" type="number" step="0.1" class="field-input" placeholder="3秒留存%">
+        </div>
+        <div class="field-row">
+          <input id="t7Comp" type="number" step="0.1" class="field-input" placeholder="完播率%">
+          <input id="t7Deep" type="number" step="0.1" class="field-input" placeholder="深度互动%">
+        </div>
+        <input id="t7Like" type="number" step="0.1" class="field-input" placeholder="点赞率 %">
+        <div class="field">
+          <label>后台数据截图</label>
+          <div class="upload-pick" onclick="document.getElementById('t7ShotFile').click()">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg>
+            点击上传图片
+          </div>
+          <input type="file" id="t7ShotFile" accept="image/*" multiple style="display:none" onchange="App.onT7CredFiles(this,'screenshot')">
+          <div id="t7ShotList" class="thumb-list"></div>
+        </div>
+        <div class="field">
+          <label>有效线索回传</label>
+          <div class="upload-pick" onclick="document.getElementById('t7ProofFile').click()">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg>
+            点击上传图片
+          </div>
+          <input type="file" id="t7ProofFile" accept="image/*" multiple style="display:none" onchange="App.onT7CredFiles(this,'business')">
+          <div id="t7ProofList" class="thumb-list"></div>
+        </div>
+        <label class="t7-original"><input type="checkbox" id="t7Original" checked> 原创 / 有效二创</label>
+        <button class="upload-submit" onclick="App.doSubmitT7()">提交打分</button>
+        <div id="t7Msg" style="font-size:13px;margin-top:10px"></div>
+      </div>
+    </div>
+
     <!-- 审核结果 -->
-    <div id="resultCard" style="display:none;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);margin-top:20px">
+    <div id="resultCard" class="upload-card" style="display:none;margin-top:20px">
       <div id="resultContent"></div>
-      <button class="btn sm" onclick="document.getElementById('resultCard').style.display='none'" style="margin-top:20px;width:100%;height:42px;border-radius:10px;border:1.5px solid #e0e0e0;background:#fff;color:#666;font-size:14px;cursor:pointer;transition:all .2s" onmouseenter="this.style.background='#f5f5f5'" onmouseleave="this.style.background='#fff'">关闭</button>
+      <button class="btn" onclick="document.getElementById('resultCard').style.display='none'" style="margin-top:20px;width:100%;height:42px;border-radius:10px">关闭</button>
     </div>
 
     <!-- 近期提交 -->
-    <div id="recentSubmissions" style="background:#fff;border-radius:20px;padding:24px 28px;box-shadow:0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);margin-top:20px">
-      <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;color:#333">📋 近期提交</h3>
+    <div id="recentSubmissions" class="recent-card">
+      <h3>近期提交</h3>
       <div id="recentList" style="font-size:13px;color:var(--muted)">加载中...</div>
     </div>
 
@@ -424,10 +663,10 @@ body { display: flex; }
 <!-- 审核管理 -->
 <section id="pane-review" class="pane">
   <div class="card">
-    <h2>🔍 内容审核管理 <span style="font-size:12px;color:var(--muted);font-weight:normal">（视频号监控采集内容）</span></h2>
+    <h2>内容审核管理 <span style="font-size:12px;color:var(--muted);font-weight:normal">（视频号监控采集内容）</span></h2>
     <!-- 待审核提醒栏 -->
-    <div id="revAlert" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#92400e">
-      ⚠️ 当前有 <b id="revPendingCount">0</b> 条内容待人工复核，请及时处理
+    <div id="revAlert" style="display:none;background:var(--amber-bg);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--amber)">
+      当前有 <b id="revPendingCount">0</b> 条内容待人工复核，请及时处理
     </div>
     <div id="revContext" style="font-size:13px;color:var(--muted);margin-bottom:10px;padding:8px 12px;background:var(--primary-bg);border-radius:8px;display:none"></div>
     <div class="toolbar">
@@ -578,6 +817,6 @@ body { display: flex; }
   </div>
 </div>
 
-<script src="/app.js?v=20260728-1"></script>
+<script src="/app.js?v=20260909-4"></script>
 </body>
 </html>

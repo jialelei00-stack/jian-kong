@@ -21,8 +21,9 @@ from typing import Dict, List
 import database
 import rules_engine
 import ai_auditor
+import campaign_scoring
 
-MAX_CONCURRENT_AI = 5
+MAX_CONCURRENT_AI = 2
 
 _queue: asyncio.Queue = asyncio.Queue()
 _semaphore: asyncio.Semaphore = asyncio.Semaphore(MAX_CONCURRENT_AI)
@@ -188,6 +189,12 @@ def _process_sync(submission_id: int) -> None:
         "summary": result.get("summary", ""),
     })
 
+    # ── 若该提交参与双百战役，顺带做内容表现打分（情理色诚），写入 campaign_scores ──
+    try:
+        _score_campaign_content(submission_id, content)
+    except Exception as e:
+        print(f"[queue] 内容表现打分异常 #{submission_id}: {e}", flush=True)
+
     # ── 黄灯（待人工复核）：推送给对应大区的地在营销经理 ──
     if final_status == "manual_review":
         _push_review_notification(sub, submission_id)
@@ -209,6 +216,35 @@ def _save_result(submission_id: int, result: Dict) -> None:
                 submission_id,
             ),
         )
+
+
+def _score_campaign_content(submission_id: int, content: dict) -> None:
+    """若该提交参与了双百战役，顺带做内容表现打分（情理色诚 0-40）并写入 campaign_scores。"""
+    with database.db_cursor() as cur:
+        cur.execute("SELECT id FROM campaign_works WHERE submission_id=?", (submission_id,))
+        row = cur.fetchone()
+        if not row:
+            return
+        work_id = row["id"]
+
+    res = campaign_scoring.ai_score_content_quality(
+        content.get("caption") or "", content.get("media") or []
+    )
+    if res.get("error"):
+        print(f"[queue] 内容表现打分失败 #{submission_id}: {res['error']}", flush=True)
+        return
+
+    with database.db_cursor() as cur:
+        cur.execute(
+            """INSERT INTO campaign_scores (work_id, ai_content_score, ai_dims, ai_reason)
+               VALUES (?,?,?,?)
+               ON CONFLICT(work_id) DO UPDATE SET
+                 ai_content_score=excluded.ai_content_score,
+                 ai_dims=excluded.ai_dims,
+                 ai_reason=excluded.ai_reason""",
+            (work_id, res["score"], json.dumps(res["dims"], ensure_ascii=False), res["reason"]),
+        )
+    print(f"[queue] 内容表现打分完成 #{submission_id} work={work_id} score={res['score']}", flush=True)
 
 
 def _push_review_notification(sub: dict, submission_id: int) -> None:

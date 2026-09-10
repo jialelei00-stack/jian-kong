@@ -269,6 +269,136 @@ def init_db() -> None:
             """
         )
 
+        # ── 双百战役：作品表（两段式上传）──
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS campaign_works (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT UNIQUE NOT NULL,          -- 一稿一码 ID
+                creator_id INTEGER,                 -- 创作者（关联 users）
+                creator_name TEXT,                  -- 冗余显示名
+                track TEXT NOT NULL,                -- 赛道
+                title TEXT,
+                url TEXT,                           -- 作品链接
+                media TEXT,                         -- 素材 JSON
+                region TEXT,                        -- 区域
+                submission_id INTEGER,              -- 关联原有上传提交（submissions.id）
+                stage TEXT NOT NULL DEFAULT 'first',    -- first=首次建档 / second=T+7已回填
+                status TEXT NOT NULL DEFAULT 'pending_t7', -- pending_t7/qualified/eliminated/disqualified
+                qualified INTEGER NOT NULL DEFAULT 0,   -- 是否满足参评门槛
+                reject_reason TEXT,                 -- 不满足门槛原因
+                publish_time TEXT,                  -- 首次上传时间（用于 T+7 判断）
+                extra_flags TEXT,                   -- 附加战功开关 JSON
+                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                updated_at TEXT,
+                FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+            """
+        )
+        # 迁移：campaign_works 增加 submission_id 字段（关联原有上传提交）
+        cw_cols = [r["name"] for r in cur.execute("PRAGMA table_info(campaign_works)").fetchall()]
+        if "submission_id" not in cw_cols:
+            cur.execute("ALTER TABLE campaign_works ADD COLUMN submission_id INTEGER")
+        # ── 双百战役：T+7 二次提交指标 ──
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS campaign_metrics (
+                work_id INTEGER PRIMARY KEY,
+                plays INTEGER,                      -- 自然播放
+                retention_3s REAL,                  -- 3秒留存率 %
+                completion_rate REAL,               -- 完播率 %
+                deep_interaction_rate REAL,         -- 深度互动率 %
+                like_rate REAL,                     -- 点赞率 %
+                screenshot TEXT,                    -- 后台截图 JSON
+                business_proof TEXT,                -- 业务凭证 JSON
+                submitted_at TEXT,
+                FOREIGN KEY (work_id) REFERENCES campaign_works(id) ON DELETE CASCADE
+            )
+            """
+        )
+        # ── 双百战役：打分明细 ──
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS campaign_scores (
+                work_id INTEGER PRIMARY KEY,
+                ai_content_score REAL,              -- 情理色诚 0-40
+                ai_dims TEXT,                       -- 四维分 JSON
+                ai_reason TEXT,                     -- AI 打分理由
+                retention_score REAL,               -- 留存 0-30
+                retention_detail TEXT,              -- JSON
+                interaction_score REAL,             -- 互动 0-30
+                interaction_detail TEXT,            -- JSON
+                total_score REAL,                   -- 总分 0-100
+                grade TEXT,                         -- S/A/B/待优化
+                base_merit INTEGER,                 -- 基础战功
+                extra_merit TEXT,                   -- 附加战功明细 JSON
+                total_merit INTEGER,                -- 总战功（上限15）
+                manual_total_score REAL,            -- 人工改分后的总分（null=未改）
+                manual_review_by INTEGER,
+                manual_review_at TEXT,
+                FOREIGN KEY (work_id) REFERENCES campaign_works(id) ON DELETE CASCADE,
+                FOREIGN KEY (manual_review_by) REFERENCES users(id) ON DELETE SET NULL
+            )
+            """
+        )
+        # ── 双百战役：凭证库 ──
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS campaign_credentials (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_id INTEGER NOT NULL,
+                type TEXT NOT NULL,                 -- screenshot/business
+                file TEXT,
+                note TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                FOREIGN KEY (work_id) REFERENCES campaign_works(id) ON DELETE CASCADE
+            )
+            """
+        )
+        # ── 双百战役：传播记录库 ──
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS campaign_propagation (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_id INTEGER NOT NULL,
+                account TEXT,                       -- 转发账号
+                url TEXT,
+                type TEXT,                          -- 转发类型
+                note TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                FOREIGN KEY (work_id) REFERENCES campaign_works(id) ON DELETE CASCADE
+            )
+            """
+        )
+        # ── 双百战役：反作弊抽检记录 ──
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS campaign_audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_id INTEGER NOT NULL,
+                action TEXT NOT NULL,               -- sample/clear/disqualify
+                result TEXT,
+                note TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                FOREIGN KEY (work_id) REFERENCES campaign_works(id) ON DELETE CASCADE
+            )
+            """
+        )
+        # ── 双百战役：赛道标签（可维护）──
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS campaign_tracks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+            )
+            """
+        )
+        cur.execute("SELECT COUNT(*) AS c FROM campaign_tracks")
+        if cur.fetchone()["c"] == 0:
+            for _t in ("益圆/传应品宣", "转假宣传", "足球小将", "门锁场景"):
+                cur.execute("INSERT INTO campaign_tracks (name) VALUES (?)", (_t,))
+
 
 def get_setting(key: str, default=None):
     with db_cursor() as cur:
@@ -284,3 +414,26 @@ def set_setting(key: str, value: str) -> None:
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, value),
         )
+
+
+def get_tracks() -> list:
+    """返回全部赛道（id + name）。"""
+    with db_cursor() as cur:
+        cur.execute("SELECT id, name FROM campaign_tracks ORDER BY id")
+        return [dict(r) for r in cur.fetchall()]
+
+
+def add_track(name: str) -> int:
+    with db_cursor() as cur:
+        cur.execute("INSERT INTO campaign_tracks (name) VALUES (?)", (name,))
+        return cur.lastrowid
+
+
+def update_track(track_id: int, name: str) -> None:
+    with db_cursor() as cur:
+        cur.execute("UPDATE campaign_tracks SET name=? WHERE id=?", (name, track_id))
+
+
+def delete_track(track_id: int) -> None:
+    with db_cursor() as cur:
+        cur.execute("DELETE FROM campaign_tracks WHERE id=?", (track_id,))
