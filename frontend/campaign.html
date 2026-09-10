@@ -336,6 +336,28 @@ a:hover { color: var(--gold); }
 .dim-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
 .dim-chip { background: #fff; border: 1px solid var(--line-soft); border-radius: 9px; padding: 6px 12px; font-size: 12px; color: var(--ink-2); }
 .dim-chip b { color: var(--electric); font-family: var(--mono); font-size: 14px; }
+
+/* 评分标准说明 */
+.ss-box { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px 14px; margin: 12px 0; }
+.ss-title { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
+.ss-title::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--gold-dim); }
+.ss-line { font-size: 12px; color: var(--ink-2); line-height: 1.9; }
+.ss-line b { color: var(--ink); }
+.ss-line .hl { color: var(--gold); font-weight: 700; }
+
+/* 留存 / 互动子项明细 */
+.sub-score { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+.sub-score .si { background: #fff; border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px 8px; text-align: center; }
+.sub-score .si .l { font-size: 11px; color: var(--ink-3); }
+.sub-score .si .v { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--electric); margin-top: 3px; }
+.sub-score .si .v b { color: var(--ink-3); font-size: 11px; font-weight: 500; }
+
+/* 附加战功 */
+.merit-box { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--ink-2); margin: 12px 0; padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 10px; }
+.merit-box b { font-family: var(--mono); color: var(--gold); font-size: 14px; }
+.merit-tag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.merit-tag.on { background: var(--gold-dim); color: var(--gold); }
+.merit-tag.off { background: var(--panel-2); color: var(--ink-3); }
 .detail-media { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
 .detail-media img, .detail-media video { max-width: 100%; max-height: 240px; border-radius: 10px; border: 1px solid var(--line-soft); background: var(--panel-2); display: block; }
 .detail-media video { width: 100%; max-width: 480px; }
@@ -894,6 +916,39 @@ async function loadCred() {
 }
 
 // ── 作品详情 ──
+function scoreStandardHtml() {
+  return `<div class="ss-box">
+    <div class="ss-title">评分标准</div>
+    <div class="ss-line"><b>好内容 = 内容表现 40% + 用户留存 30% + 互动传播 30%</b></div>
+    <div class="ss-line"><span class="hl">内容表现 40 分</span> · AI 围绕「情理色诚」四维打分（情/理/色/诚，每维 0-10）</div>
+    <div class="ss-line"><span class="hl">用户留存 30 分</span> · 3秒留存(10) + 完播率(20)</div>
+    <div class="ss-line"><span class="hl">互动传播 30 分</span> · 深度互动率(20) + 点赞率(10)</div>
+    <div class="ss-line">等级 S=10 / A=6 / B=3 / 待优化=0 · 附加战功 矩阵+2 跨区+2 结果导向+1（单条上限 15）</div>
+  </div>`;
+}
+
+function subScoreHtml(s) {
+  const rd = s.retention_detail || {};
+  const id = s.interaction_detail || {};
+  return `<div class="sub-score">
+    <div class="si"><div class="l">3秒留存</div><div class="v">${rd.retention_3s ?? '-'} <b>/10</b></div></div>
+    <div class="si"><div class="l">完播率</div><div class="v">${rd.completion ?? '-'} <b>/20</b></div></div>
+    <div class="si"><div class="l">深度互动</div><div class="v">${id.deep_interaction ?? '-'} <b>/20</b></div></div>
+    <div class="si"><div class="l">点赞率</div><div class="v">${id.like ?? '-'} <b>/10</b></div></div>
+  </div>`;
+}
+
+function meritHtml(s) {
+  const em = s.extra_merit || {};
+  if (!em.detail) return '';
+  const order = [['matrix_amplify','矩阵放大'],['cross_region','跨区复用'],['result_oriented','结果导向']];
+  const tags = order.map(([k,label]) => {
+    const it = em.detail[k] || {};
+    return `<span class="merit-tag ${it.on ? 'on' : 'off'}">${it.on ? '✓ ' : ''}${label}${it.on ? ' +' + (it.points ?? 0) : ''}</span>`;
+  }).join('');
+  return `<div class="merit-box">基础战功 <b>${em.base ?? 0}</b> ${tags} = 总战功 <b>${em.total ?? 0}</b></div>`;
+}
+
 async function showDetail(id) {
   curWorkId = id;
   const w = await api('/api/campaign/works/'+id);
@@ -929,6 +984,9 @@ async function showDetail(id) {
       html += `<div class="dim-chips">${Object.entries(s.ai_dims).map(([k,v])=>`<span class="dim-chip">${esc(k)}·${esc(k==='情'?'有共鸣':k==='理'?'有获得':k==='色'?'愿意看':'真可信')} <b>${v}</b></span>`).join('')}</div>`;
     }
     if (s.ai_reason) html += `<p class="hint mt">AI 打分理由：${esc(s.ai_reason)}</p>`;
+    html += scoreStandardHtml();
+    html += subScoreHtml(s);
+    html += meritHtml(s);
     html += `<div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input id="ovScore" type="number" step="0.1" placeholder="人工改总分 0-100" style="width:170px;height:34px;padding:0 12px;font-size:13px;background:var(--bg-2);border:1px solid var(--line);border-radius:9px;color:var(--ink)">
       <button class="btn primary sm" onclick="doOverride()">保存改分</button>
@@ -943,6 +1001,7 @@ async function showDetail(id) {
       html += `<div class="dim-chips">${Object.entries(s.ai_dims).map(([k,v])=>`<span class="dim-chip">${esc(k)}·${esc(k==='情'?'有共鸣':k==='理'?'有获得':k==='色'?'愿意看':'真可信')} <b>${v}</b></span>`).join('')}</div>`;
     }
     if (s.ai_reason) html += `<p class="hint mt">AI 打分理由：${esc(s.ai_reason)}</p>`;
+    html += scoreStandardHtml();
     html += `<div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input id="ovAiScore" type="number" step="0.1" placeholder="改内容表现分 0-40" style="width:170px;height:34px;padding:0 12px;font-size:13px;background:var(--bg-2);border:1px solid var(--line);border-radius:9px;color:var(--ink)">
       <button class="btn primary sm" onclick="doOverrideAi()">保存改分</button>
