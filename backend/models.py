@@ -115,11 +115,26 @@ class CampaignMetricsIn(BaseModel):
     plays: Optional[int] = None
     retention_3s: Optional[float] = None
     completion_rate: Optional[float] = None
-    deep_interaction_rate: Optional[float] = None
-    like_rate: Optional[float] = None
+    comment_count: Optional[int] = None   # 评论个数
+    like_count: Optional[int] = None      # 爱心个数
+    share_count: Optional[int] = None  # 转发次数（直接按次数套档位；转发率只作展示）
     screenshot: Optional[Any] = None
     business_proof: Optional[Any] = None
     original: Optional[bool] = True  # 原创/有效二创声明
+    url: Optional[str] = None        # 作品链接（回传时必填，会回写到作品上）
+    ocr_raw: Optional[Any] = None    # AI 从后台截图识别出的原始六项数值（留痕用）
+
+
+class CampaignCredentialReviewIn(BaseModel):
+    """有效线索库：单条凭证的人工审核。"""
+    action: str                       # approve（合格）/ reject（不合格）
+    note: Optional[str] = None
+
+
+class CampaignMeritIn(BaseModel):
+    """人工审核追加战功（在不改变系统评分的前提下调整作品战功）。"""
+    delta: Optional[float] = None     # 追加/扣减的分值，正负均可
+    reason: Optional[str] = None
 
 
 class CampaignScoreOverrideIn(BaseModel):
@@ -132,6 +147,17 @@ class CampaignScoreOverrideIn(BaseModel):
 class CampaignCredentialIn(BaseModel):
     type: str
     file: Optional[str] = None
+    note: Optional[str] = None
+
+
+class BrandRefLearnIn(BaseModel):
+    """品牌参考学习：传一张图（base64 或 URL）+ 品牌名 + 可选备注。
+
+    后端先调多模态模型对图生成"字形指纹 + 包装布局"描述，写到 brand_ref_descriptions，
+    audit() 调模型时把描述写进 system prompt（而不是每次都附图，省 token）。
+    """
+    brand: str
+    image: str  # base64 data URL（data:image/png;base64,xxx）或 HTTP URL
     note: Optional[str] = None
 
 

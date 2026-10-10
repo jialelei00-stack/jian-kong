@@ -5,6 +5,7 @@
     JIANKONG_USE_MOCK=0  使用 Appium 真机采集（需配置真机环境）
 """
 import os
+from datetime import datetime
 # 加载 .env 文件中的环境变量（COS密钥等）
 try:
     from dotenv import load_dotenv
@@ -20,6 +21,7 @@ except ImportError:
                     _k, _v = _line.split("=", 1)
                     os.environ.setdefault(_k.strip(), _v.strip())
 import json
+import re
 import sqlite3
 import threading
 import asyncio
@@ -37,10 +39,13 @@ import rules_engine
 import ai_auditor
 import auth
 import queue_manager
+import cos_service
+import base64
 from routers import auth_router, submissions_router, admin_router, notifications_router, usage_router, campaign_router
-from models import ChannelIn, ChannelCategoryIn, RuleIn, ContentIn, ModelConfigIn
+from models import ChannelIn, ChannelCategoryIn, RuleIn, ContentIn, ModelConfigIn, \
+    BrandRefLearnIn
 
-app = FastAPI(title="南孚在地营销")
+app = FastAPI(title="南孚在地营销", docs_url=None, redoc_url=None, openapi_url=None)
 
 # ── 挂载模块化路由 ──
 app.include_router(auth_router)
@@ -88,19 +93,111 @@ async def password_middleware(request: Request, call_next):
     return FileResponse(os.path.join(FRONTEND_DIR, "login.html"))
 
 
+# ── 安全响应头中间件（R-10） ──
+# 统一注入 4 个 OWASP 推荐的响应头；不影响业务。
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    # 最小化 CSP：仅允许同源资源（前端已全部内联/同源）
+    if "Content-Security-Policy" not in response.headers:
+        # img-src / media-src 放开腾讯云 COS 域名：视频/图片走 COS 预签名 URL，
+        # 不放开则浏览器阻止跨域媒体加载 → 详情页视频出不来。
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; img-src 'self' data: blob: https://*.myqcloud.com; "
+            "media-src 'self' blob: https://*.myqcloud.com; style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
+            "frame-ancestors 'none'; base-uri 'self'"
+        )
+    return response
+
+
+# ── 限速中间件（滑窗，内存计数器） ──
+# 设计原则：阈值按"未来增长"而非当前观察定，留足余量；
+# 同 IP 维度优先，登录失败另带 username 维度；白名单接口不计。
+from runtime_utils import client_ip, hit_rl, login_locked, normalize_region, REGIONS as _REGIONS
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    path = request.url.path
+    method = request.method
+    ip = client_ip(request)
+
+    # 白名单：静态资源、/login 页面、/api/regions（前端频繁拉）
+    if (path.startswith("/static") or path.startswith("/media")
+            or path == "/" or path.endswith(".html") or path.endswith(".js")
+            or path.endswith(".css") or path == "/api/regions"):
+        return await call_next(request)
+
+    # 登录/注册/游客：5 分钟 ≤10 次；登录额外做失败锁定
+    if method == "POST" and path in (
+            "/api/auth/login", "/api/auth/register", "/api/auth/guest"):
+        if path == "/api/auth/login":
+            try:
+                body = await request.json()
+                uname = (body.get("username") or "").strip()
+            except Exception:
+                uname = ""
+            if uname and login_locked(ip, uname):
+                return JSONResponse(
+                    {"detail": "登录失败次数过多，请 5 分钟后再试"},
+                    status_code=429,
+                )
+        if not hit_rl(f"auth:{ip}", limit=10, window_s=300):
+            return JSONResponse({"detail": "操作过于频繁，请稍后再试"},
+                                status_code=429)
+        return await call_next(request)
+
+    # 上传：1 分钟 ≤30 次（同 IP）
+    if method == "POST" and path == "/api/submissions/upload":
+        if not hit_rl(f"upload:{ip}", limit=30, window_s=60):
+            return JSONResponse({"detail": "上传过于频繁，请稍后再试"},
+                                status_code=429)
+        return await call_next(request)
+
+    # AI 推荐：1 分钟 ≤6 次；同一 submission_id 24h ≤5 次
+    if method == "POST" and path.endswith("/recommend-track"):
+        if not hit_rl(f"rec:{ip}", limit=6, window_s=60):
+            return JSONResponse({"detail": "AI 推荐调用过于频繁，请稍后再试"},
+                                status_code=429)
+        m_id = re.search(r"/api/submissions/(\d+)/recommend-track", path)
+        if m_id:
+            sid = m_id.group(1)
+            if not hit_rl(f"rec:sid:{sid}", limit=5, window_s=86400):
+                return JSONResponse(
+                    {"detail": "同一提交 AI 推荐已达上限（5 次/天）"},
+                    status_code=429,
+                )
+        return await call_next(request)
+
+    # 其他 API：1 秒 ≤20 次（防刷、扛展厅讲解连续点击）
+    if path.startswith("/api/"):
+        if not hit_rl(f"api:{ip}", limit=20, window_s=1):
+            return JSONResponse({"detail": "请求过于频繁"},
+                                status_code=429)
+    return await call_next(request)
+
+
 # ── 统一认证中间件：注入用户 + API 拦截 ──
-_API_PUBLIC = {"/api/auth/login", "/api/auth/register", "/api/auth/guest", "/api/regions", "/api/submissions/upload", "/api/campaign/tracks", "/api/campaign/pending-by-name", "/api/campaign/submit-by-code", "/api/campaign/credentials/upload"}
+_API_PUBLIC = {"/api/auth/login", "/api/auth/register", "/api/auth/guest", "/api/regions", "/api/submissions/upload", "/api/campaign/tracks", "/api/campaign/pending-by-name", "/api/campaign/submit-by-code", "/api/campaign/credentials/upload", "/api/campaign/ocr-metrics"}
 # 支持 guest 访问的 API（通过 guest_session cookie，不需要登录）
 _GUEST_API_PREFIXES = ("/api/submissions", "/api/notifications", "/api/dashboard/stats", "/api/queue/status")
 
 
 @app.middleware("http")
 async def cache_control_middleware(request: Request, call_next):
-    """禁止浏览器缓存 HTML/JS/CSS，防止旧版页面残留"""
+    """禁止浏览器缓存 HTML 页面，防止旧版页面残留。
+
+    JS/CSS 不在这里压 no-store：前端静态资源由 nginx 统一发缓存头
+    （带内容哈希的 app.<hash>.js 走 immutable 长缓存，其余靠 ?v=N 更新），
+    这里再叠一层 no-store 会把它盖掉，等于每次开页面都重下 1.2MB。
+    """
     response = await call_next(request)
     path = request.url.path
-    # 只对静态资源设置无缓存
-    if any(path.endswith(ext) for ext in (".html", ".js", ".css")) or path in ("/", "/user", "/manager"):
+    if path.endswith(".html") or path in ("/", "/user", "/manager"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -162,11 +259,21 @@ def _load_enabled_rules(cur) -> List[dict]:
 from rules_engine import analyze_content as _rules_analyze
 
 
+# 「无任何…违规元素」「未出现…违规情形」这类否定表述里的关键词不构成违规，
+# 若不做处理，「合规，无违规」的结论会被误判为 red。先整段剔除否定从句再判级。
+_NEGATED_RISK_RE = re.compile(
+    r"(?:无|未|没有|不存在|不涉及|未出现|未命中|未发现|未触发|不含|非|勿)"
+    r"[^，。；！？,;!?\n]{0,40}"
+    r"(?:违规|违反|不合规|风险|问题|禁止|严重|错误|错别字|负面|虚假)"
+)
+
+
 def _ai_conclusion_to_risk(conclusion: str) -> str:
     """将 AI 结论文字映射为风险等级 red/yellow/green/none"""
     if not conclusion:
         return "none"
     c = conclusion.strip()
+    c = _NEGATED_RISK_RE.sub("", c)
     # 违规类
     if any(kw in c for kw in ["违规", "不合规", "违反", "禁止", "严重"]):
         return "red"
@@ -200,8 +307,13 @@ def _analyze_and_store(cur, content_id: int, content: dict, rule_list: List[dict
         ai_violations = detail.get("violations") or []
         hook = lambda c, r, _av=ai_violations: _av
     result = rules_engine.analyze_content(content, rule_list, semantic_hook=hook)
+    # 最终状态只看过滤后的真实违规列表；没有违规时清掉旧风险，保持状态为合规。
+    if not result["matched_rules"]:
+        result["risk_level"] = "none"
+        result["status"] = "compliant"
+        result["summary"] = "未命中任何合规规则，内容合规。"
     # 当关键词规则未命中（risk_level=none）但 AI 已有结论时，用 AI 结论映射风险等级
-    if result["risk_level"] == "none" and ai_review and ai_review.get("conclusion"):
+    if result["risk_level"] == "none" and result["matched_rules"] and ai_review and ai_review.get("conclusion"):
         result["risk_level"] = _ai_conclusion_to_risk(ai_review["conclusion"])
         if result["risk_level"] != "none":
             result["status"] = "violation" if result["risk_level"] == "red" else "compliant"
@@ -321,8 +433,13 @@ def _background_ai_analysis(channel_id: int, new_content_ids: list = None):
             ai_violations = detail.get("violations") or []
             hook = lambda c, r, _av=ai_violations: _av
             result = rules_engine.analyze_content(content, rule_list, semantic_hook=hook)
+            # 最终状态只看过滤后的真实违规列表；没有违规时清掉旧风险。
+            if not result["matched_rules"]:
+                result["risk_level"] = "none"
+                result["status"] = "compliant"
+                result["summary"] = "未命中任何合规规则，内容合规。"
             # 当关键词规则未命中但 AI 已有结论时，用 AI 结论映射风险等级
-            if result["risk_level"] == "none" and ai_review.get("conclusion"):
+            if result["risk_level"] == "none" and result["matched_rules"] and ai_review.get("conclusion"):
                 result["risk_level"] = _ai_conclusion_to_risk(ai_review["conclusion"])
                 if result["risk_level"] != "none":
                     result["status"] = "violation" if result["risk_level"] == "red" else "compliant"
@@ -585,6 +702,16 @@ def video_proxy(content_id: int, request: Request):
 # ---------------- 启动 ----------------
 @app.on_event("startup")
 async def on_startup():
+    # 关键依赖自检（R-18）：缺则在日志明确告警，但**不阻塞启动**，
+    # 让缺依赖的功能自然降级（前端已有「AI 未就绪」提示）。
+    import logging as _logging
+    _logger = _logging.getLogger("startup")
+    for _name in ("openai", "multipart", "starlette", "fastapi", "uvicorn"):
+        try:
+            __import__(_name)
+        except Exception as _e:
+            _logger.critical("[startup] 关键依赖缺失 %s: %s —— AI 审核/上传可能降级",
+                             _name, _e)
     database.init_db()
     seed.seed_if_empty()
     queue_manager.start_workers()
@@ -953,6 +1080,171 @@ def get_content_detail(content_id: int):
     d["thumb_url"] = d["media"][0]["thumb"] if d.get("media") and d["media"][0].get("thumb") else ""
     d["is_video"] = d["media"][0].get("is_video", False) if d.get("media") else False
     return d
+
+@app.post("/api/contents/{content_id}/violations/{idx}/mark-false-positive")
+def mark_content_violation_false_positive(content_id: int, idx: int, req: Request):
+    """视频号采集内容：单条违规标误报，从 analysis_results.matched_rules 移除并重计状态。"""
+    user = auth.require_manager(req)
+    note = ""
+    try:
+        body = json.loads((req.scope.get("body") or b"").decode("utf-8") or "{}")
+        note = (body.get("note") or "").strip()
+    except Exception:
+        pass
+    with database.db_cursor() as cur:
+        cur.execute("SELECT matched_rules, status, risk_level FROM analysis_results WHERE content_id=?", (content_id,))
+        ar = cur.fetchone()
+        if not ar:
+            raise HTTPException(404, "分析结果不存在")
+        ar = dict(ar)
+        matched = json.loads(ar["matched_rules"]) if ar.get("matched_rules") else []
+        if not (0 <= idx < len(matched)):
+            raise HTTPException(400, f"违规下标 {idx} 超出范围（共 {len(matched)} 条）")
+        target = dict(matched[idx])
+        target["false_positive"] = True
+        target["false_positive_by"] = user.get("display_name") or user.get("username", "")
+        target["false_positive_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if note:
+            target["false_positive_note"] = note[:500]
+        matched.pop(idx)
+        # 状态重算：与 recheck_typo 保持一致的口径
+        if not matched:
+            new_status, new_risk = "approved", "none"
+        else:
+            sev_rank = {"forbidden": 4, "high": 3, "medium": 2, "low": 1}
+            max_sev = max((sev_rank.get(str(m.get("severity", "low")).lower(), 1) for m in matched), default=0)
+            if max_sev <= 1:
+                new_status, new_risk = "approved", "none"
+            else:
+                new_status, new_risk = "manual_review", "forbidden" if max_sev == 4 else ("high" if max_sev == 3 else "medium")
+        cur.execute(
+            "UPDATE analysis_results SET matched_rules=?, status=?, risk_level=? WHERE content_id=?",
+            (json.dumps(matched, ensure_ascii=False), new_status, new_risk, content_id),
+        )
+        cur.execute(
+            "INSERT INTO usage_log (action, display_name, region, ip, submission_id, detail) VALUES (?,?,?,?,?,?)",
+            ("违规标误报(content)", user.get("display_name") or user.get("username", ""),
+             "", req.client.host if req.client else "", content_id,
+             f"原违规：{target.get('rule_name')}/{target.get('matched_text','')[:60]}; 备注: {note or '无'}"),
+        )
+    return {"ok": True, "new_status": new_status, "new_risk": new_risk, "remaining": len(matched)}
+
+
+@app.post("/api/contents/{content_id}/recheck-typo")
+def recheck_content_typo(content_id: int, req: Request):
+    """视频号采集内容的形近错字违规二次确认（同 /api/submissions/.../recheck-typo）。
+
+    流程：按 needs_ocr_review 找出违规 → OCR 取证 + AI 复判 → verdict 写回 matched_rules 条目；
+    丢弃的违规从列表里拿掉，状态同步下调；写 recheck_at / recheck_summary 到 analysis_results。
+    """
+    user = auth.require_manager(req)
+    with database.db_cursor() as cur:
+        cur.execute("SELECT * FROM contents WHERE id=?", (content_id,))
+        c = cur.fetchone()
+        if not c:
+            raise HTTPException(404, "内容不存在")
+        c = dict(c)
+        cur.execute("SELECT matched_rules, status, risk_level FROM analysis_results WHERE content_id=?", (content_id,))
+        ar = cur.fetchone()
+        if not ar:
+            return {"rechecks": [], "summary": {"total": 0, "uphold": 0, "discard": 0, "uncertain": 0}}
+        ar = dict(ar)
+        matched = json.loads(ar["matched_rules"]) if ar.get("matched_rules") else []
+
+    media = c.get("media")
+    if isinstance(media, str):
+        try: media = json.loads(media)
+        except: media = []
+    image_urls: list = []
+    for m in media or []:
+        if not isinstance(m, dict):
+            continue
+        for k in ("frame_url", "frame_cos_url", "cos_url", "cover_url", "url", "preview_url", "thumb"):
+            v = m.get(k)
+            if isinstance(v, str) and v.startswith("http"):
+                image_urls.append(v); break
+    if not image_urls:
+        return {"rechecks": [], "summary": {"total": 0, "uphold": 0, "discard": 0, "uncertain": 0}}
+
+    full_text = " / ".join(
+        t for t in (c.get("title"), c.get("caption"), c.get("ocr_text"), c.get("transcript"))
+        if isinstance(t, str) and t.strip()
+    )
+
+    targets = [(i, v) for i, v in enumerate(matched)
+               if v.get("needs_ocr_review") and v.get("recheck_verdict") not in ("uphold", "discard")]
+    if not targets:
+        return {"rechecks": [], "summary": {"total": 0, "uphold": 0, "discard": 0, "uncertain": 0}}
+
+    rechecks, summary = [], {"total": 0, "uphold": 0, "discard": 0, "uncertain": 0}
+    discard_indices: list = []
+    new_status, new_risk = ar.get("status"), ar.get("risk_level")
+
+    for idx, v in targets:
+        try:
+            res = ai_auditor.recheck_typo_violation(
+                image_urls=image_urls,
+                first_evidence=str(v.get("matched_text") or v.get("evidence") or ""),
+                first_rule_name=str(v.get("rule_name") or ""),
+                first_field=str(v.get("field") or "").rstrip("（AI）"),
+                full_text=full_text,
+            )
+        except Exception as e:
+            res = {"verdict": "uncertain", "reason": f"复判异常：{e}",
+                   "ocr_seen": [], "standard_seen": [], "ocr_raw": [], "model": "", "error": str(e)}
+        verdict = res.get("verdict", "uncertain")
+        summary["total"] += 1
+        summary[verdict] = summary.get(verdict, 0) + 1
+        v["recheck_verdict"] = verdict
+        v["recheck_reason"] = res.get("reason", "")
+        v["recheck_ocr"] = res.get("ocr_text_all", "") or " / ".join(res.get("ocr_raw") or [])
+        v["recheck_ocr_seen"] = res.get("ocr_seen") or []
+        v["recheck_standard_seen"] = res.get("standard_seen") or []
+        v["recheck_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        v["recheck_model"] = res.get("model", "")
+        rechecks.append({
+            "violation_index": idx, "rule_name": v.get("rule_name"),
+            "verdict": verdict, "reason": v["recheck_reason"],
+            "ocr_seen": v["recheck_ocr_seen"], "standard_seen": v["recheck_standard_seen"],
+        })
+        if verdict == "discard":
+            discard_indices.append(idx)
+        elif verdict == "uphold" and v.get("severity") in ("forbidden", "high"):
+            if new_risk in (None, "", "none", "low", "medium"):
+                new_risk = "forbidden" if v["severity"] == "forbidden" else "high"
+                new_status = "violation"
+
+    if discard_indices:
+        discard_set = set(discard_indices)
+        matched = [m for i, m in enumerate(matched) if i not in discard_set]
+        if not matched:
+            new_status, new_risk = "approved", "none"
+        else:
+            sev_rank = {"forbidden": 4, "high": 3, "medium": 2, "low": 1}
+            max_sev = max((sev_rank.get(str(m.get("severity", "low")).lower(), 1) for m in matched), default=0)
+            if max_sev <= 1:
+                new_status, new_risk = "approved", "none"
+            elif new_status == "violation":
+                new_status = "manual_review"
+
+    with database.db_cursor() as cur:
+        cur.execute(
+            """UPDATE analysis_results SET matched_rules=?, status=?, risk_level=?,
+               recheck_at=datetime('now','localtime'), recheck_summary=?
+               WHERE content_id=?""",
+            (json.dumps(matched, ensure_ascii=False), new_status, new_risk,
+             json.dumps(summary, ensure_ascii=False), content_id),
+        )
+        cur.execute(
+            "INSERT INTO usage_log (action, display_name, region, ip, submission_id, detail) VALUES (?,?,?,?,?,?)",
+            ("形近错字复判(content)",
+             user.get("display_name") or user.get("username", ""),
+             "", req.client.host if req.client else "", content_id,
+             f"summary={summary}; verdicts={[r['verdict'] for r in rechecks]}"),
+        )
+    return {"rechecks": rechecks, "summary": summary,
+            "new_status": new_status, "new_risk": new_risk}
+
 
 # ---------------- 内容审核管理（视频号采集内容）----------------
 @app.get("/api/review/contents")
@@ -1505,13 +1797,23 @@ def dashboard_overview(req: Request):
 
 
 # ── 公开区域列表（登录页注册需要，无需认证） ──
-_REGIONS = {
-    "华东区": ["安徽AB区", "安徽CD区", "江苏AB区", "上海市", "苏北CD区", "苏南CD区", "浙东区", "浙西区"],
-    "华北区": ["北京市", "河北AB区", "河北CD区", "河南AB区", "山东AB区", "山西省", "天津市", "豫北CD区", "豫南CD区", "鲁东CD区", "鲁西CD区"],
-    "华南区": ["海南省", "湖北AB区", "湖北CD区", "湖南AB区", "湖南CD区", "江西省", "闽北区", "闽南区", "粤东A区", "粤东B区", "粤西A区", "粤西B区"],
-    "东北区": ["黑龙江省", "吉林省", "辽北区", "辽南区", "内蒙古"],
-    "西一区": ["甘青宁藏", "陕西AB区", "陕西CD区", "四川AB区", "四川CD区", "新疆省", "重庆AB区", "重庆CD区"],
-    "西二区": ["贵州省", "桂北区", "桂南区", "桂中区", "云南省"],
+# 标准表已收敛到 runtime_utils.REGIONS（写入端规范化也用同一份），这里只做转发。
+
+# 人均战功统计使用的区域人数。河南CD区是豫北CD区与豫南CD区的合计，
+# 作品区域仍保留原有两个名称，统计时统一归入河南CD区；流通渠道部不计入。
+_REGION_HEADCOUNTS = {
+    "安徽AB区": 10, "安徽CD区": 10, "北京市": 8, "甘青宁藏": 10,
+    "贵州省": 11, "桂北区": 7, "桂南区": 11, "海南省": 4,
+    "河北AB区": 11, "河北CD区": 14, "河南AB区": 13, "河南CD区": 17,
+    "黑龙江省": 8, "湖北AB区": 11, "湖北CD区": 8, "湖南AB区": 11,
+    "湖南CD区": 9, "吉林省": 7, "江苏AB区": 15, "江西省": 14,
+    "辽北区": 7, "辽南区": 7, "鲁东CD区": 8, "鲁西CD区": 7,
+    "闽北区": 10, "闽南区": 11, "内蒙古": 6, "山东AB区": 16,
+    "山西省": 9, "陕西AB区": 9, "陕西CD区": 5, "上海市": 11,
+    "四川AB区": 12, "四川CD区": 9, "苏北CD区": 8, "苏南CD区": 10,
+    "天津市": 3, "新疆省": 6, "粤东A区": 12, "粤东B区": 6,
+    "粤西A区": 14, "粤西B区": 8, "云南省": 12, "浙东区": 6,
+    "浙西区": 15, "重庆AB区": 6, "重庆CD区": 6,
 }
 
 
@@ -1520,11 +1822,159 @@ def list_regions():
     return _REGIONS
 
 
+@app.get("/api/region-headcounts")
+def list_region_headcounts():
+    return {
+        "headcounts": _REGION_HEADCOUNTS,
+        "aliases": {"苏南区": "苏南CD区", "豫北CD区": "河南CD区", "豫南CD区": "河南CD区"},
+        "excluded": ["流通渠道部"],
+    }
+
+
 @app.get("/api/queue/status")
 def get_queue_status(req: Request):
     """返回审核队列实时状态（排队数、处理中、预估等待时间）。"""
     auth.require_user(req)
     return queue_manager.queue_status()
+
+
+# ---------------- 品牌参考学习（防形近字误报） ----------------
+_BRAND_REF_MIME = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
+
+
+def _brand_ref_cos_key(brand: str) -> str:
+    ym = datetime.now().strftime("%Y%m")
+    return f"campaign/brand_ref/{brand}/{ym}/{int(time.time() * 1000)}_{secrets.token_hex(4)}.jpg"
+
+
+def _decode_data_url(data_url: str) -> tuple:
+    """把 data:image/...;base64,xxx 解码成 (bytes, mime)。失败返回 (None, None)。"""
+    try:
+        if "," not in data_url:
+            return None, None
+        head, b64 = data_url.split(",", 1)
+        m = re.match(r"data:image/([a-zA-Z0-9.+-]+);base64", head.strip())
+        mime = f"image/{m.group(1)}" if m else "image/jpeg"
+        return base64.b64decode(b64), mime
+    except Exception:
+        return None, None
+
+
+@app.post("/api/admin/brand-ref/learn")
+async def brand_ref_learn(payload: BrandRefLearnIn, req: Request):
+    """上传一张品牌产品图，后端：
+    1) 解码图片 → 2) 上传 COS（路径 campaign/brand_ref/{brand}/{yyyymm}/）→
+    3) 调多模态模型生成「字形指纹 + 包装布局 + 易误识形近字」描述 →
+    4) 写到 brand_ref_descriptions；之后每次 audit() 都把这份描述读进 system prompt。
+
+    入参：
+      brand: 品牌名（南孚/益圆/丰蓝/传应）
+      image: base64 data URL 或 HTTP URL（建议用 data URL，避免 CDN 防盗链）
+      note:  可选备注
+    """
+    auth.require_admin(req)
+    brand = (payload.brand or "").strip()
+    if not brand:
+        raise HTTPException(400, "品牌名必填")
+    if not payload.image:
+        raise HTTPException(400, "图片必填（base64 data URL 或 HTTP URL）")
+
+    cos_key = None
+    img_bytes = None
+    img_mime = "image/jpeg"
+
+    if payload.image.startswith("data:"):
+        img_bytes, img_mime = _decode_data_url(payload.image)
+        if not img_bytes:
+            raise HTTPException(400, "data URL 解析失败")
+    elif payload.image.startswith("http://") or payload.image.startswith("https://"):
+        # HTTP URL：直接传 URL 给多模态模型，cos_key 留空
+        img_bytes = None
+    else:
+        raise HTTPException(400, "image 必须是 data URL 或 http(s) URL")
+
+    if img_bytes is not None and cos_service.is_enabled():
+        try:
+            cos_key = _brand_ref_cos_key(brand)
+            cos_service.upload_bytes(img_bytes, cos_key, img_mime or "image/jpeg")
+        except Exception as e:
+            print(f"[brand-ref] COS 上传失败: {e}")
+            cos_key = None
+
+    # 调多模态模型生成描述
+    res = ai_auditor.learn_brand_description(brand, payload.image)
+    if res.get("error"):
+        # 描述生成失败：回滚本次学习（避免留下空描述）
+        raise HTTPException(500, f"AI 生成描述失败: {res['error']}")
+    desc = res.get("description") or {}
+
+    # 写 DB：先 upsert brand_ref_descriptions，再 upsert brand_ref_images
+    import json as _json
+    with database.db_cursor() as cur:
+        cur.execute("""
+            INSERT INTO brand_ref_descriptions (brand, description, model, generated_at)
+            VALUES (?, ?, ?, datetime('now','localtime'))
+            ON CONFLICT(brand) DO UPDATE SET
+                description=excluded.description,
+                model=excluded.model,
+                generated_at=excluded.generated_at
+        """, (brand, _json.dumps(desc, ensure_ascii=False), res.get("model", "")))
+        if cos_key:
+            cur.execute("""
+                INSERT INTO brand_ref_images (brand, cos_key, updated_at, note)
+                VALUES (?, ?, datetime('now','localtime'), ?)
+                ON CONFLICT(brand) DO UPDATE SET
+                    cos_key=excluded.cos_key,
+                    updated_at=excluded.updated_at,
+                    note=COALESCE(excluded.note, brand_ref_images.note)
+            """, (brand, cos_key, payload.note))
+
+    return {
+        "ok": True,
+        "brand": brand,
+        "cos_key": cos_key,
+        "cos_url": cos_service.presigned_url(cos_key) if cos_key and cos_service.is_enabled() else None,
+        "description": desc,
+        "model": res.get("model", ""),
+    }
+
+
+@app.get("/api/admin/brand-ref")
+def brand_ref_list(req: Request):
+    """列出已学习的品牌 + 描述 + COS 预览链接，给管理后台展示用。"""
+    auth.require_admin(req)
+    import json as _json
+    with database.db_cursor() as cur:
+        cur.execute("""
+            SELECT b.brand, b.description, b.model, b.generated_at,
+                   i.cos_key, i.note
+            FROM brand_ref_descriptions b
+            LEFT JOIN brand_ref_images i ON i.brand = b.brand
+            ORDER BY b.id
+        """)
+        rows = []
+        for r in cur.fetchall():
+            desc = r["description"]
+            try:
+                if isinstance(desc, str):
+                    desc = _json.loads(desc) if desc.strip().startswith("{") else {}
+            except Exception:
+                desc = {}
+            rows.append({
+                "brand": r["brand"],
+                "description": desc,
+                "model": r["model"],
+                "generated_at": r["generated_at"],
+                "cos_key": r["cos_key"],
+                "cos_url": cos_service.presigned_url(r["cos_key"]) if r["cos_key"] and cos_service.is_enabled() else None,
+                "note": r["note"],
+            })
+    return {"items": rows, "count": len(rows)}
 
 
 # ---------------- 前端静态托管 ----------------
@@ -1543,6 +1993,12 @@ def user_page():
 def manager_page():
     """管理后台 —— 需要登录后使用（看板、审核、采集等）"""
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
+@app.get("/brand_ref")
+def brand_ref_page():
+    """品牌参考学习 —— 让多模态模型学习 4 个品牌的标准产品图，作为「形近字错字」判定的绝对基准。"""
+    return FileResponse(os.path.join(FRONTEND_DIR, "brand_ref.html"))
 
 
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")

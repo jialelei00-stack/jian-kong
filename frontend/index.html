@@ -4,9 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>南孚在地营销</title>
-<link rel="stylesheet" href="/shared.css?v=4" />
-<link rel="stylesheet" href="/style.css?v=4" />
-<script src="/echarts.min.js"></script>
+<link rel="stylesheet" href="/shared.css?v=5" />
+<link rel="stylesheet" href="/style.css?v=5" />
+<script src="/echarts.min.js?v=1"></script>
 <style>
 /* ── 布局 ── */
 html, body { height: 100%; overflow: hidden; background: var(--bg); }
@@ -29,6 +29,7 @@ body { display: flex; }
   box-shadow: 0 5px 14px -5px rgba(37,99,235,.55);
 }
 .side-brand-mark .ic { width: 20px; height: 20px; }
+.drawer-close { display: none; }  /* 默认隐藏：仅手机端抽屉内显示 */
 .side-brand-text { min-width: 0; }
 .side-brand-text h2 { font-size: 15px; color: var(--primary-dark); margin: 0; white-space: nowrap; letter-spacing: .2px; }
 .side-brand-text .ver { font-size: 11px; color: var(--muted-light); display: block; margin-top: 1px; }
@@ -42,10 +43,23 @@ body { display: flex; }
 .side-user-meta { min-width: 0; display: flex; flex-direction: column; }
 .side-user .name { color: var(--text); font-weight: 600; font-size: 13px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-user .role { color: var(--text-secondary); margin-top: 2px; font-size: 11px; }
-.side-nav { flex: 1; padding: 6px 0; }
+/* 菜单项多起来后会超出屏幕高度：必须自己可滚，否则下面的分组（内容合规/系统）
+   以及底部的退出登录都点不到。min-height:0 是为了让 flex 子项真正收缩出滚动区。*/
+.side-nav { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0; }
 .side-nav a { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: var(--text-secondary); font-size: 14px; text-decoration: none; transition: all var(--transition); border-left: 3px solid transparent; cursor: pointer; }
 .side-nav a:hover { background: var(--primary-bg); color: var(--primary); }
 .side-nav a.active { color: var(--primary); border-left-color: var(--primary); background: var(--primary-bg); }
+/* 抽屉里的「跳转到独立页」链接（驾驶舱 / 数据导出）：
+   视觉上明确告诉用户这是另一个页面，并加 ↗ 小图标。
+   不响应侧边栏的 active 高亮（active 只用于 SPA 视图）。*/
+.side-nav a.nav-external { color: var(--text-secondary); }
+.side-nav a.nav-external:hover { background: var(--surface-hover); color: var(--text); }
+.side-nav a.nav-external:active { background: var(--surface-active, var(--primary-bg)); }
+.side-nav a.nav-external.active { color: var(--primary); border-left-color: var(--primary); background: var(--primary-bg); }
+.side-nav a .nav-ext-icon {
+  width: 13px; height: 13px; margin-left: auto; opacity: .55; flex-shrink: 0;
+}
+.side-nav a.nav-external:hover .nav-ext-icon { opacity: .9; }
 .side-nav a .icon {
   width: 28px; height: 28px; border-radius: 8px;
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -53,11 +67,24 @@ body { display: flex; }
 }
 .side-nav a .icon .ic { width: 18px; height: 18px; }
 .side-nav a:hover .icon { background: var(--brand-bg); color: var(--brand); }
-.side-nav a.active .icon { background: var(--brand); color: #fff; }
+.side-nav a.active .icon { background: var(--brand-grad); color: #fff; box-shadow: var(--shadow-brand); }
+.side-nav a.active { font-weight: 600; }
 .side-nav .sep { height: 1px; background: var(--border); margin: 6px 12px; }
-.side-nav .nav-group { padding: 12px 16px 4px; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .5px; }
-.side-nav .nav-group:first-child { padding-top: 8px; }
-.side-bottom { padding: 6px 0; border-top: 1px solid var(--border); }
+.side-nav .nav-sec { display: block; }
+.side-nav .nav-group {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; margin: 0; padding: 14px 16px 5px; border: none; background: none;
+  cursor: pointer; font-family: inherit; text-align: left;
+  font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .5px;
+  transition: color var(--transition);
+}
+.side-nav .nav-group:hover { color: var(--brand); }
+.side-nav .nav-group .caret { width: 13px; height: 13px; flex-shrink: 0; opacity: .6; transition: transform .2s ease, opacity .2s ease; }
+.side-nav .nav-group:hover .caret { opacity: 1; }
+.side-nav .nav-sec.collapsed .nav-group .caret { transform: rotate(-90deg); }
+.side-nav .nav-sec.collapsed .nav-items { display: none; }
+.side-nav .nav-sec:first-child .nav-group { padding-top: 9px; }
+.side-bottom { flex-shrink: 0; padding: 6px 0; border-top: 1px solid var(--border); }
 .side-bottom a {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 16px; color: var(--text-secondary); font-size: 14px;
@@ -120,6 +147,22 @@ body { display: flex; }
 /* ── 汉堡按钮（仅手机显示）── */
 .burger { display: none; border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text); padding: 4px; }
 
+/* ── 侧边栏折叠开关（已废弃：用户反馈这个长方块按钮视觉奇怪、且 .burger 已被顶条替代）── */
+.side-toggle { display: none !important; }
+
+/* ── 顶条汉堡 / 返回键 ──
+   之前的 bug：图标切换规则写在 @media(max-width:768px) 内，桌面端 /manager 页面
+   两条都不生效 → 按钮里的 ☰ 和 × 两个 SVG 同时渲染，
+   看起来像"一个长方块里三横线加一个 X"。
+   现在拆成两部分：① 桌面端隐藏按钮 ② 图标互斥规则全局生效。*/
+@media (min-width: 769px) {
+  #topBurger, #backBtn { display: none !important; }
+}
+#topBurger .ic-bars { display: block !important; }
+#topBurger .ic-close { display: none !important; }
+body.drawer-open #topBurger .ic-bars { display: none !important; }
+body.drawer-open #topBurger .ic-close { display: block !important; }
+
 /* ── 主区域 ── */
 #main { flex: 1; overflow-y: auto; overflow-x: hidden; margin-left: 220px; }
 .pane { display: none; padding: 20px 24px; animation: fade .2s ease; }
@@ -159,35 +202,168 @@ body { display: flex; }
   #main { margin-left: 64px; }
 }
 
-/* ── 手机：侧边栏化横条 ── */
+/* ── 手机：底部 4 标签栏 + 顶条汉堡抽屉 ──
+   设计：顶条固定 52px（汉堡 + 标题 + 铃）；底部 tab 4 个核心入口（≥48px 命中区）；
+   汉堡点开是全屏抽屉放其余次要项。字号 14-15pt，黑底白字高对比。*/
 @media (max-width: 768px) {
-  body { flex-direction: column; }
-  #sidebar {
-    width: 100%; min-width: 100%; height: auto; flex-direction: row; flex-wrap: wrap;
-    box-shadow: none; border-bottom: 1px solid var(--border); overflow: visible; z-index: 50;
-    position: relative;
+  body { flex-direction: column; padding-bottom: 64px; }
+
+  /* 顶条：与 #mgrTopbar 合并成单条 */
+  #mgrTopbar {
+    position: sticky; top: 0; z-index: 60;
+    height: 52px; padding: 0 12px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04);
   }
-  .side-logo { flex: 1; border-bottom: none; padding: 8px 14px; justify-content: space-between; }
-  .side-brand-text h2 { font-size: 14px; }
+  .mgr-topbar-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .mgr-topbar-right { display: flex; align-items: center; gap: 12px; }
+  #notifBell { width: 40px; height: 40px; }
+  .mgr-topbar-right .btn { display: none; } /* 顶条不显示"退出登录"按钮，由汉堡抽屉内的"修改密码/退出"承担 */
+
+  /* 顶条左侧汉堡按钮（替代原来藏在 .side-logo 里的 burger）*/
+  #topBurger,
+  #backBtn {
+    display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+    background: transparent; border: none; cursor: pointer; color: var(--text);
+  }
+  #topBurger:active, #backBtn:active { background: var(--brand-bg); }
+  #topBurger .ic, #backBtn .ic { width: 22px; height: 22px; }
+
+  /* 侧边栏在手机端：抽屉从左滑入，宽度 84% 上限 320px，遮罩仍盖全屏右侧可点关闭 */
+  #sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 84%; max-width: 320px; min-width: 0; height: 100vh;
+    flex-direction: column; flex-wrap: nowrap;
+    background: var(--surface); z-index: 200;
+    transform: translateX(-100%); transition: transform .22s ease;
+    box-shadow: none; border-bottom: none; overflow-y: auto;
+  }
+  body.drawer-open #sidebar { transform: translateX(0); }
+  body.drawer-open { overflow: hidden; }
+  .side-logo {
+    flex: 0 0 auto; border-bottom: 1px solid var(--border);
+    padding: 12px 16px; justify-content: space-between;
+    display: flex; align-items: center;
+  }
+  .side-brand-text h2 { font-size: 16px; }
   .side-brand-text .ver { display: none; }
-  .side-brand-mark { width: 30px; height: 30px; border-radius: 8px; }
-  .side-user, .side-bottom { display: none; }
-  .side-nav { display: none; flex-direction: row; width: 100%; overflow-x: auto; padding: 0 4px; border-top: 1px solid var(--border); white-space: nowrap; }
-  .side-nav.open { display: flex; }
-  .side-nav a { flex-shrink: 0; border-left: none; border-bottom: 2px solid transparent; padding: 8px 10px; font-size: 12px; }
+  .side-brand-mark { width: 36px; height: 36px; border-radius: 9px; }
+  .side-user { display: flex; padding: 12px 16px; border-bottom: 1px solid var(--border-light); background: var(--bg-soft, var(--bg)); }
+  .side-user .name { font-size: 14px; font-weight: 600; }
+  .side-user .role { font-size: 12px; color: var(--muted); }
+  .side-bottom { display: flex; flex-direction: column; padding: 8px 12px; border-top: 1px solid var(--border-light); }
+  .side-bottom a { padding: 12px 14px; font-size: 14px; }
+
+  /* 抽屉里的导航分组：默认全展开，省一次点击 */
+  .side-nav { display: flex; flex-direction: column; width: 100%; padding: 8px 0; flex: 1; overflow-y: auto; }
+  .nav-sec { padding: 4px 0; }
+  .nav-group {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; font-size: 11px; color: var(--muted);
+    background: transparent; border: none; width: 100%; text-align: left;
+    letter-spacing: .04em; text-transform: uppercase; font-weight: 700;
+    cursor: default; pointer-events: none;
+  }
+  .nav-group .caret { display: none; } /* 手机端不折叠 */
+  .nav-items { display: flex !important; flex-direction: column; }
+  .side-nav a {
+    flex-shrink: 0; border-left: none; padding: 14px 16px;
+    font-size: 15px; color: var(--text); gap: 12px;
+    display: flex; align-items: center; min-height: 48px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .side-nav a .icon { width: 22px; height: 22px; flex-shrink: 0; color: var(--brand); }
   .side-nav a span:not(.icon) { display: inline; }
-  .side-nav a.active { border-bottom-color: var(--primary); background: transparent; border-left: none; }
+  .side-nav a.active { background: var(--brand-bg); border-left: 3px solid var(--brand); padding-left: 13px; color: var(--brand); font-weight: 600; }
   .side-nav .sep { display: none; }
-  .burger { display: flex !important; align-items: center; justify-content: center; }
-  #main { width: 100%; height: auto; flex: 1; margin-left: 0; }
-  .pane { padding: 10px 8px; }
+
+  /* 旧 .burger（侧边栏内）和 .side-toggle 在手机端不显示 */
+  .burger, .side-toggle { display: none !important; }
+  /* 手机端抽屉内右上角的 × 关闭按钮 */
+  .drawer-close {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px;
+    background: var(--brand-bg); border: none; cursor: pointer; color: var(--brand);
+  }
+  .drawer-close:active { background: rgba(185,28,28,.18); }
+  .drawer-close .ic { width: 20px; height: 20px; }
+
+  /* 顶条在抽屉打开时提升 z-index 到抽屉之上，使汉堡/返回键可点 */
+  body.drawer-open #mgrTopbar { z-index: 300; }
+  /* 顶条汉堡在抽屉打开时变品牌色（☰↔× 的图标切换规则见文件顶部，全局生效） */
+  body.drawer-open #topBurger { color: var(--brand); background: var(--brand-bg); }
+
+  /* 抽屉遮罩 */
+  #drawerMask {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    z-index: 199; opacity: 0; pointer-events: none;
+    transition: opacity .22s ease;
+  }
+  body.drawer-open #drawerMask { opacity: 1; pointer-events: auto; }
+
+  /* 底部 tab bar：列数由 JS 注入的 button 数量决定（最多 4） */
+  #tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    height: 60px; background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex; z-index: 60; box-shadow: 0 -1px 0 rgba(0,0,0,.04);
+  }
+  /* 1-4 个 tab 时每个 button 占满等分 */
+  #tabbar.cols-1 button { flex: 1; }
+  #tabbar.cols-2 button { flex: 1; }
+  #tabbar.cols-3 button { flex: 1; }
+  #tabbar.cols-4 button { flex: 1; }
+  #tabbar button {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: transparent; border: none; color: var(--muted);
+    font-size: 11px; padding: 4px 0; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #tabbar button:active { background: var(--brand-bg); }
+  #tabbar button .ic { width: 22px; height: 22px; }
+  #tabbar button.active { color: var(--brand); font-weight: 600; }
+  #tabbar button.active .ic { color: var(--brand); }
+
+  #main { width: 100%; height: auto; flex: 1; margin-left: 0; padding-top: 0; }
+  .pane { padding: 12px 12px 16px; }
 }
 
 /* ── 全国战况（区域业绩）── */
-#rpBreadcrumb { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
-#rpBreadcrumb a { color: var(--brand); font-weight: 600; }
+.rp-toolbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 16px;
+  background: var(--surface); border: 1px solid var(--border-light);
+  border-radius: 12px; box-shadow: var(--shadow-xs);
+}
+.rp-title {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.rp-title .ic { width: 18px; height: 18px; color: var(--brand); }
+#rpBreadcrumb {
+  display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  font-size: 13px; color: var(--muted); flex: 1; min-width: 0;
+}
+#rpBreadcrumb .crumb { display: inline-flex; align-items: center; gap: 4px; }
+#rpBreadcrumb .crumb-current { color: var(--text); font-weight: 600; }
+#rpBreadcrumb a { color: var(--brand); font-weight: 500; }
 #rpBreadcrumb a:hover { color: var(--brand-dark); text-decoration: underline; }
-#rpBreadcrumb .sep { color: var(--text-placeholder); }
+#rpBreadcrumb .sep { color: var(--text-placeholder); margin: 0 2px; }
+.rp-refresh {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px; border-radius: 8px; flex-shrink: 0;
+  background: var(--surface); color: var(--text-secondary);
+  border: 1px solid var(--border); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .15s ease;
+}
+.rp-refresh:hover { background: var(--brand-bg); color: var(--brand); border-color: var(--brand-soft); }
+.rp-refresh:active { transform: scale(.96); }
+.rp-refresh .ic { width: 15px; height: 15px; }
+.rp-refresh.is-loading .ic { animation: rpSpin .8s linear infinite; }
+@keyframes rpSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
 .rp-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 18px; }
 .rp-kpis.col-4 { grid-template-columns: repeat(4, 1fr); }
@@ -240,6 +416,9 @@ body { display: flex; }
 .wz-head p { margin: 3px 0 0; font-size: 12px; color: var(--muted); }
 .wz-badge { font-size: 11px; font-weight: 600; color: var(--brand); background: var(--brand-bg); border-radius: 999px; padding: 3px 10px; }
 .wz-list { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.wz-list.scroll { max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.wz-seg { flex-shrink: 0; margin: 0; padding: 4px; gap: 4px; border-radius: 10px; }
+.wz-seg button { flex: 0 0 auto; height: 30px; padding: 0 14px; font-size: 12px; border-radius: 7px; }
 .wz-row {
   display: flex; align-items: center; gap: 10px;
   padding: 10px; border-radius: 12px; cursor: pointer;
@@ -286,11 +465,71 @@ body { display: flex; }
 }
 .map-zoom button:hover { background: var(--brand-bg); border-color: var(--brand); color: var(--brand); }
 
+@media (max-width: 1200px) {
+  /* 6 列在中等屏会被压到 130~190px，改成 3 列 */
+  .rp-kpis, .rp-kpis.col-4 { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 768px) {
-  .warzone-wrap { flex-direction: column; }
-  .warzone-map { height: 380px; }
-  .warzone-rank { width: auto; }
+  .warzone-wrap { flex-direction: column; gap: 12px; }
+  /* 地图按宽度自适应：宽×0.75，最少 220，最多 360 */
+  .warzone-map { height: clamp(220px, 75vw, 360px); min-height: 220px; }
+  .warzone-rank { width: 100%; }
+  /* 排行榜行加大触摸区 */
+  .wz-row { padding: 12px 14px; min-height: 52px; }
+  .wz-name { font-size: 14px; }
+  .wz-name em { font-size: 13px; }
+  /* 标题/工具栏在手机端紧凑 */
+  .warzone-wrap .map-title { font-size: 12px; padding: 6px 10px; }
+  .warzone-wrap .map-title b { font-size: 12px; }
+  .warzone-wrap .map-title span { display: none; }
+  /* KPI 6 列在窄屏 2 列 */
   .rp-kpis, .rp-kpis.col-4 { grid-template-columns: repeat(2, 1fr); }
+}
+/* 极窄屏（≤380px）单列 KPI */
+@media (max-width: 380px) {
+  .rp-kpis, .rp-kpis.col-4 { grid-template-columns: 1fr; }
+}
+
+/* ── AI 赛道识别 → 确认建档 ── */
+.track-flow { margin-top: 14px; padding: 16px; border: 1px solid var(--border-light); border-radius: var(--radius-lg); background: var(--surface-alt); }
+.tf-steps { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.tf-step { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.tf-step .dot { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; background: var(--border-light); color: #fff; flex-shrink: 0; }
+.tf-step.active .dot { background: var(--brand); animation: tfPulse 1.2s ease-in-out infinite; }
+.tf-step.done .dot { background: var(--green); }
+.tf-step.active, .tf-step.done { color: var(--text); }
+.tf-line { flex: 1; min-width: 14px; height: 2px; border-radius: 2px; background: var(--border-light); }
+.tf-line.done { background: var(--green); }
+.tf-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-light); border-top-color: var(--brand); display: inline-block; animation: tfSpin .8s linear infinite; }
+@keyframes tfSpin { to { transform: rotate(360deg); } }
+@keyframes tfPulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.25); opacity: .6; } }
+/* 提交前二次确认：把回传对象摆出来，避免把数据回传到别人的作品上 */
+.t7-confirm { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 9px; padding: 9px 11px; margin-bottom: 12px; }
+.t7-confirm .t7-original { color: #9a3412; margin-bottom: 0; align-items: flex-start; font-weight: 600; }
+.t7-confirm .t7-original input { margin-top: 2px; }
+/* 区域两级下拉：iOS Safari 里 <select> 放在 flex 一行会被算成近 0 宽（"缩一块"看不到）。
+   手机上让容器彻底脱离 flex、两个下拉各占一行，绕开所有 flex 宽度计算。 */
+.region-row > .field-select { min-width: 0; }
+@media (max-width: 600px) {
+  .region-row { display: block; }
+  .region-row > .field-select { display: block; width: 100%; max-width: none; margin-bottom: 8px; }
+  .region-row > .field-select:last-child { margin-bottom: 0; }
+}
+/* 待回传作品列表：标题原来用 nowrap + ellipsis 跟日期/徽标/按钮挤一行，
+   手机上标题被压成 0 宽度，作品名称整条看不见。改成 flex 换行：
+   放得下就一行，放不下标题独占一行并自动折行，名称再长也完整可读。 */
+.pl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 9px 0; border-bottom: 1px dashed #dbeafe; }
+.pl-title { flex: 1 1 200px; min-width: 0; font-size: 13px; font-weight: 600; color: #16181d; line-height: 1.45; word-break: break-word; }
+.pl-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-left: auto; }
+.pl-when { flex-shrink: 0; font-size: 11px; color: #9ca3af; white-space: nowrap; }
+.pl-link { font-size: 12px; color: #1d4ed8; white-space: nowrap; text-decoration: underline; }
+.pl-nolink { font-size: 12px; color: #9ca3af; white-space: nowrap; }
+.pl-btn { height: 30px; padding: 0 12px; font-size: 12px; border-radius: 8px; }
+@media (max-width: 600px) {
+  /* 窄屏：标题独占一行，元信息整体换到第二行，按钮靠右 */
+  .pl-title { flex: 1 1 100%; }
+  .pl-meta { width: 100%; margin-left: 0; }
+  .pl-btn { margin-left: auto; }
 }
 </style>
 </head>
@@ -315,25 +554,40 @@ body { display: flex; }
       <span class="side-brand-mark"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg></span>
       <span class="side-brand-text"><h2>南孚在地营销</h2></span>
     </div>
-    <button class="burger" onclick="document.getElementById('sideNav').classList.toggle('open')" title="菜单"><svg class="ic" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+    <!-- 注意：原 .side-toggle / .burger 按钮在手机端被隐藏，桌面端留着但用得人少、视觉像 bug，干脆移除。-->
+    <button class="burger" onclick="document.getElementById('sideNav').classList.toggle('open')" title="菜单" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
   </div>
   <nav class="side-nav" id="sideNav">
-    <div class="nav-group" data-role="all">双百战役</div>
-    <a data-view="regionperf" class="active" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></span><span>全国战况</span></a>
-    <a href="/campaign.html" data-role="all"><span class="icon"><svg class="ic" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span><span>战功榜单 · 驾驶舱</span></a>
-    <a data-view="subdash" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span><span>提交审核</span></a>
-    <a data-view="upload" data-role="all"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg></span><span>内容审核</span></a>
+    <div class="nav-sec" data-group="battle" data-role="all">
+      <button type="button" class="nav-group" onclick="App.toggleNavGroup(this)"><span>双百战役</span><svg class="ic caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="nav-items">
+        <a data-view="regionperf" class="active" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></span><span>全国战况</span></a>
+        <a href="/campaign.html" data-role="all" class="nav-external"><span class="icon"><svg class="ic" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span><span>战功榜单 · 驾驶舱</span><svg class="ic nav-ext-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>
+        <a href="/export.html" data-role="all" class="nav-external"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></span><span>数据导出</span><svg class="ic nav-ext-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>
+        <a data-view="subdash" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span><span>提交审核</span></a>
+        <a data-view="upload" data-role="all"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg></span><span>内容审核</span></a>
+      </div>
+    </div>
 
-    <div class="nav-group" data-role="manager,admin">内容合规</div>
-    <a data-view="dashboard" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>看板总览</span></a>
-    <a data-view="channels" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg></span><span>视频号管理</span></a>
-    <a data-view="review" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><span>审核管理</span></a>
-    <a data-view="rules" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg></span><span>合规规则</span></a>
-    <a data-view="modelcfg" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="18" r="2"/></svg></span><span>模型配置</span></a>
+    <div class="nav-sec" data-group="compliance" data-role="manager,admin">
+      <button type="button" class="nav-group" onclick="App.toggleNavGroup(this)"><span>内容合规</span><svg class="ic caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="nav-items">
+        <a data-view="dashboard" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>看板总览</span></a>
+        <a data-view="channels" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg></span><span>视频号管理</span></a>
+        <a data-view="review" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><span>审核管理</span></a>
+        <a data-view="rules" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg></span><span>合规规则</span></a>
+        <a data-view="modelcfg" data-role="manager,admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="18" r="2"/></svg></span><span>模型配置</span></a>
+      </div>
+    </div>
 
-    <div class="nav-group" data-role="admin">系统</div>
-    <a data-view="admin" data-role="admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>用户管理</span></a>
-    <a data-view="usage_log" data-role="admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/></svg></span><span>使用日志</span></a>
+    <div class="nav-sec" data-group="system" data-role="admin">
+      <button type="button" class="nav-group" onclick="App.toggleNavGroup(this)"><span>系统</span><svg class="ic caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="nav-items">
+        <a data-view="admin" data-role="admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>用户管理</span></a>
+        <a data-view="usage_log" data-role="admin"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/></svg></span><span>使用日志</span></a>
+        <a href="/brand_ref.html" data-role="admin" class="nav-external"><span class="icon"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 3v18"/></svg></span><span>品牌参考学习</span><svg class="ic nav-ext-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>
+      </div>
+    </div>
   </nav>
   <div class="side-bottom" id="sideBottom">
     <div class="side-user" id="sideUser"><div class="name">未登录</div><div class="role"></div></div>
@@ -347,6 +601,13 @@ body { display: flex; }
 
 <!-- 顶部栏 -->
 <header class="mgr-topbar" id="mgrTopbar">
+  <button id="topBurger" onclick="App.toggleDrawer()" title="菜单" aria-label="打开菜单">
+    <svg class="ic ic-bars" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <svg class="ic ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6l-12 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+  </button>
+  <button id="backBtn" onclick="App.goBack()" title="返回" aria-label="返回上一级" style="display:none">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+  </button>
   <div class="mgr-topbar-title" id="viewTitle">看板总览</div>
   <div class="mgr-topbar-right">
     <div id="notifBell" onclick="App.toggleNotif()" title="消息通知">
@@ -356,6 +617,12 @@ body { display: flex; }
     <button class="btn sm" onclick="App.logout()">退出登录</button>
   </div>
 </header>
+
+<!-- 抽屉遮罩（手机端） -->
+<div id="drawerMask" onclick="App.toggleDrawer()"></div>
+
+<!-- 手机端底部 4 标签栏：内容由 App.renderTabbar() 按角色动态填充 -->
+<nav id="tabbar" aria-label="主导航"></nav>
 
 <!-- 看板总览 -->
 <section id="pane-dashboard" class="pane active">
@@ -395,16 +662,22 @@ body { display: flex; }
   </div>
   <div class="card is-super">
     <h2>各视频号合规概览</h2>
-    <div class="table-scroll"><table class="data-table"><thead><tr><th>视频号</th><th>状态</th><th>内容数</th><th>违规</th><th>合规率</th></tr></thead><tbody id="overviewTbody"></tbody></table></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>视频号</th><th>状态</th><th class="hide-md">内容数</th><th class="hide-sm">违规</th><th>合规率</th></tr></thead><tbody id="overviewTbody"></tbody></table></div>
   </div>
 </section>
 
 <!-- 区域业绩（三级下钻：大区 → 细分区域 → 作品/线索） -->
 <section id="pane-regionperf" class="pane">
-  <div class="toolbar">
-    <span id="rpBreadcrumb">全部大区</span>
-    <span style="flex:1"></span>
-    <button class="btn sm" onclick="App.loadRegionOverview()">刷新</button>
+  <div class="rp-toolbar">
+    <div class="rp-title">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/><circle cx="7" cy="14" r="1.2" fill="currentColor"/><circle cx="10" cy="11" r="1.2" fill="currentColor"/><circle cx="13" cy="14" r="1.2" fill="currentColor"/><circle cx="17" cy="9" r="1.2" fill="currentColor"/></svg>
+      <span>区域业绩</span>
+    </div>
+    <div id="rpBreadcrumb"><span>全部大区</span></div>
+    <button class="rp-refresh" onclick="App.loadRegionOverview()" title="刷新数据">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 4v5h-5"/></svg>
+      <span>刷新</span>
+    </button>
   </div>
   <div id="rpBody"></div>
 </section>
@@ -435,7 +708,7 @@ body { display: flex; }
       <button class="btn sm" onclick="App.exportSubmissions()">导出</button>
       <button class="btn sm" onclick="App.loadSubDashboard()">刷新</button>
     </div>
-    <div class="table-scroll"><table class="sub-table"><thead><tr><th>标题/内容</th><th>提交者</th><th>区域</th><th>赛道</th><th>时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="subdashTbody"></tbody></table></div>
+    <div class="table-scroll"><table class="sub-table"><thead><tr><th>标题/内容</th><th class="hide-sm">提交者</th><th class="hide-md">区域</th><th class="hide-md">赛道</th><th class="hide-sm">时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="subdashTbody"></tbody></table></div>
     <div class="pagination" id="subdashPagination"></div>
   </div>
 </section>
@@ -475,16 +748,17 @@ body { display: flex; }
         </div>
         <div class="field">
           <label>所属区域 <span class="req">*</span></label>
-          <div class="field-row">
+          <div class="field-row region-row">
             <select id="upBigRegion" class="field-select" onchange="App.onGuestBigChange()"><option value="">选择大区</option></select>
             <select id="upSubRegion" class="field-select"><option value="">选择区域</option></select>
           </div>
+          <div id="upRegionHint" style="display:none;font-size:12px;color:#b45309;margin-top:6px"></div>
         </div>
       </div>
 
       <!-- 标题 -->
       <div class="field">
-        <label>标题</label>
+        <label>标题 <span class="req">*</span></label>
         <input type="text" id="upTitle" class="field-input" placeholder="给内容起个名字">
       </div>
 
@@ -494,17 +768,13 @@ body { display: flex; }
         <textarea id="upCaption" rows="3" class="field-textarea" placeholder="输入内容描述、文案、口播等..."></textarea>
       </div>
 
-      <!-- 参与双百战役赛道 -->
+      <!-- 参与双百战役赛道（必选） -->
       <div class="field">
-        <label>参与双百战役赛道</label>
+        <label>参与双百战役赛道 <span class="req">*</span></label>
         <select id="upTrack" class="field-select">
-          <option value="益圆/传应品宣" selected>益圆/传应品宣</option>
-          <option value="转假宣传">转假宣传</option>
-          <option value="足球小将">足球小将</option>
-          <option value="门锁场景">门锁场景</option>
-          <option value="">不参与双百战役</option>
+          <option value="__ai__" selected>🤖 由 AI 识别后推荐（推荐）</option>
         </select>
-        <p class="hint">默认参与双百战役，可切换赛道或选择「不参与」；作品将自动建档，T+7 天回填数据即可参与战功排行</p>
+        <p class="hint">必选：所有投稿都需参与双百战役。选「AI 识别后推荐」时，识别完会在下方弹出赛道确认，确认后才生成一稿一码。</p>
       </div>
 
       <!-- 文件上传 -->
@@ -512,8 +782,10 @@ body { display: flex; }
         <svg class="ic" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg>
         <p>点击选择文件 或 拖拽到此处</p>
         <p>支持视频 / 图片，单文件最大 500MB</p>
+        <p style="color:#b45309;font-weight:600;margin-top:4px">视频时长需满 15 秒，不足 15 秒无法提交审核</p>
       </div>
       <div id="fileList" style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0"></div>
+      <p id="fileLoadingMsg" style="display:none;text-align:center;font-size:13px;color:var(--primary);margin:8px 0;min-height:20px">正在读取视频信息，请稍候…</p>
       <input type="file" id="fileInput" multiple accept="video/*,image/*" style="display:none">
 
       <!-- 提交按钮 -->
@@ -527,6 +799,12 @@ body { display: flex; }
           <div id="qsFill" style="height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-light));transition:width .5s;border-radius:2px"></div>
         </div>
       </div>
+
+      <!-- AI 赛道识别 → 确认建档 -->
+      <div id="trackFlow" class="track-flow" style="display:none">
+        <div class="tf-steps" id="tfSteps"></div>
+        <div id="tfBody"></div>
+      </div>
     </div>
 
     <!-- 回传 T+7 数据卡片 -->
@@ -534,12 +812,20 @@ body { display: flex; }
       <div class="upload-head">
         <div class="mark"><svg class="ic" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg></div>
         <h2>双百战役</h2>
-        <p>发布满 7 天后，回传播放 / 留存 / 互动数据，系统自动打分并计入战功</p>
+        <p>发布满 7 天后，回传播放 / 留存 / 互动数据，系统自动打分并计入战功；同一作品可多次回传，每次都会留档</p>
       </div>
 
       <div class="field">
-        <label>您的姓名</label>
-        <input type="text" id="t7Name" class="field-input" placeholder="请输入姓名">
+        <label>您的姓名 <span class="req">*</span></label>
+        <input type="text" id="t7Name" class="field-input" placeholder="请输入姓名" oninput="App.onT7NameInput()">
+      </div>
+      <div class="field">
+        <label>所属区域 <span class="req">*</span></label>
+        <div class="field-row region-row">
+          <select id="t7BigRegion" class="field-select" onchange="App.onT7BigChange()"><option value="">选择大区</option></select>
+          <select id="t7SubRegion" class="field-select"><option value="">选择区域（可留空）</option></select>
+        </div>
+        <div id="t7RegionHint" style="display:none;font-size:12px;color:#b45309;margin-top:6px"></div>
       </div>
 
       <button class="upload-secondary" onclick="App.queryPending()">按姓名查询待回传作品</button>
@@ -554,18 +840,26 @@ body { display: flex; }
 
       <!-- 内嵌回传表单 -->
       <div id="t7Form" class="t7-form" style="display:none">
-        <div class="t7-code">回传作品：<code id="t7FormCode"></code></div>
+        <div class="t7-code">回传作品：<span id="t7FormTitle" style="font-weight:600;color:#16181d"></span><code id="t7FormCode" style="display:none"></code></div>
+        <div id="t7SeqTip" style="font-size:12px;line-height:1.7;margin:6px 0 10px"></div>
+        <div class="field">
+          <label>作品链接 <span class="req">*</span></label>
+          <input id="t7Url" class="field-input" placeholder="视频号 / 平台作品链接">
+        </div>
         <div class="field-row">
           <input id="t7Plays" type="number" class="field-input" placeholder="自然播放量">
           <input id="t7R3" type="number" step="0.1" class="field-input" placeholder="3秒留存%">
         </div>
         <div class="field-row">
           <input id="t7Comp" type="number" step="0.1" class="field-input" placeholder="完播率%">
-          <input id="t7Deep" type="number" step="0.1" class="field-input" placeholder="深度互动%">
+          <input id="t7Deep" type="number" class="field-input" placeholder="评论个数（条）">
         </div>
-        <input id="t7Like" type="number" step="0.1" class="field-input" placeholder="点赞率 %">
+        <div class="field-row">
+          <input id="t7Like" type="number" class="field-input" placeholder="爱心个数（个）">
+          <input id="t7Share" type="number" class="field-input" placeholder="转发次数">
+        </div>
         <div class="field">
-          <label>后台数据截图</label>
+          <label>后台数据截图 <span class="req">*</span></label>
           <div class="upload-pick" onclick="document.getElementById('t7ShotFile').click()">
             <svg class="ic" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg>
             点击上传图片
@@ -573,17 +867,26 @@ body { display: flex; }
           <input type="file" id="t7ShotFile" accept="image/*" multiple style="display:none" onchange="App.onT7CredFiles(this,'screenshot')">
           <div id="t7ShotList" class="thumb-list"></div>
         </div>
+        <button type="button" class="upload-secondary" id="t7OcrBtn" onclick="App.ocrT7Metrics()" style="margin-bottom:6px">识别截图数据（自动填上面 6 项）</button>
+        <div id="t7OcrMsg" style="font-size:12px;line-height:1.8;margin:0 0 12px"></div>
         <div class="field">
-          <label>有效线索回传</label>
+          <label>有效线索回传 <span style="font-size:12px;font-weight:400;color:var(--muted)">选填</span></label>
           <div class="upload-pick" onclick="document.getElementById('t7ProofFile').click()">
             <svg class="ic" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4-4 4 4"/></svg>
             点击上传图片
           </div>
           <input type="file" id="t7ProofFile" accept="image/*" multiple style="display:none" onchange="App.onT7CredFiles(this,'business')">
           <div id="t7ProofList" class="thumb-list"></div>
+          <div style="font-size:12px;color:#b45309;line-height:1.7;margin-top:6px">
+            有分销订单、转假信息这类有效线索的话传上来，后台审核通过后可<b>额外追加战功</b>；不传也能正常提交计分。
+          </div>
         </div>
-        <label class="t7-original"><input type="checkbox" id="t7Original" checked> 原创 / 有效二创</label>
-        <button class="upload-submit" onclick="App.doSubmitT7()">提交打分</button>
+        <label class="t7-original"><input type="checkbox" id="t7Original"> 原创 / 有效二创 <span class="req">*</span></label>
+        <div class="t7-confirm">
+          <div id="t7ConfirmInfo" style="font-size:12px;line-height:1.7;color:#16181d"></div>
+          <label class="t7-original" style="margin-top:6px"><input type="checkbox" id="t7ConfirmWork"> 我确认回传的是我本人的作品，数据填写无误 <span class="req">*</span></label>
+        </div>
+        <button id="t7SubmitBtn" class="upload-submit" onclick="App.doSubmitT7()">提交打分</button>
         <div id="t7Msg" style="font-size:13px;margin-top:10px"></div>
       </div>
     </div>
@@ -639,7 +942,7 @@ body { display: flex; }
       <select id="fSeverity" onchange="App.renderRules()"><option value="">全部等级</option><option value="forbidden">严重</option><option value="high">风险</option><option value="medium">一般</option><option value="low">建议</option></select>
       <select id="fEnabled" onchange="App.renderRules()"><option value="">全部状态</option><option value="1">已启用</option><option value="0">已停用</option></select>
     </div>
-    <div class="table-scroll"><table class="data-table"><thead><tr><th>名称</th><th>分类</th><th>类型</th><th>匹配内容</th><th>风险</th><th>启用</th><th>操作</th></tr></thead><tbody id="rulesTbody"></tbody></table></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>名称</th><th class="hide-md">分类</th><th class="hide-md">类型</th><th class="hide-md">匹配内容</th><th>风险</th><th class="hide-sm">启用</th><th>操作</th></tr></thead><tbody id="rulesTbody"></tbody></table></div>
   </div>
 </section>
 
@@ -701,7 +1004,7 @@ body { display: flex; }
   <div class="card">
     <h2>用户管理</h2>
     <div class="toolbar"><button class="btn primary" onclick="App.showAddUser()">+ 添加用户</button></div>
-    <div class="table-scroll"><table class="data-table"><thead><tr><th>ID</th><th>用户名</th><th>显示名</th><th>角色</th><th>区域</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="adminUsersTbody"></tbody></table></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th class="hide-sm">ID</th><th>用户名</th><th class="hide-md">显示名</th><th>角色</th><th class="hide-md">区域</th><th class="hide-sm">创建时间</th><th>操作</th></tr></thead><tbody id="adminUsersTbody"></tbody></table></div>
   </div>
   <div class="card hidden" id="addUserCard">
     <h2>添加用户</h2>
@@ -718,18 +1021,34 @@ body { display: flex; }
       </div>
     </div>
   </div>
+  <div class="card hidden" id="editUserCard">
+    <h2>编辑用户 · <span id="euName"></span></h2>
+    <div style="max-width:400px">
+      <div class="form-row"><label>显示名</label><input id="euDisplay" placeholder="显示名称" /></div>
+      <div class="form-row"><label>角色</label><select id="euRole" onchange="App.onEuRole()"><option value="uploader">区域经理</option><option value="manager">在地营销经理</option><option value="admin">超级管理员</option></select></div>
+      <div class="form-row" id="euBigRow"><label>大区</label><select id="euBig" onchange="App.onEuBig()"><option value="">选择大区</option></select></div>
+      <div class="form-row hidden" id="euSubRow"><label>区域</label><select id="euSub"><option value="">选择区域</option></select></div>
+      <div class="form-row"><label>重置密码</label><input id="euPwd" type="password" placeholder="留空则不修改；≥8 位且含字母和数字" /></div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">角色决定数据授权范围：区域经理看本区域作品，在地营销经理看本大区，超级管理员看全部。</p>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn primary" onclick="App.saveEditUser()">保存修改</button>
+        <button class="btn" onclick="document.getElementById('editUserCard').classList.add('hidden')">取消</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- 使用日志 -->
 <section id="pane-usage_log" class="pane">
   <div class="card">
     <h2>使用日志</h2>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">记录公开上传页的上传操作和管理端的审核操作。</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">记录公开上传页的上传操作、管理端的审核操作，以及账号新增/删除等管理操作。</p>
 
     <!-- Tab 切换 -->
     <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border)">
       <button id="logTabUpload" onclick="App.loadUsageLog(1,'upload')" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:var(--primary);border-bottom:2px solid var(--primary)">上传记录</button>
       <button id="logTabReview" onclick="App.loadUsageLog(1,'review')" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;color:var(--muted);border-bottom:2px solid transparent">审核记录</button>
+      <button id="logTabAdmin" onclick="App.loadUsageLog(1,'admin')" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:14px;color:var(--muted);border-bottom:2px solid transparent">管理操作</button>
     </div>
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -740,7 +1059,7 @@ body { display: flex; }
     <!-- 上传记录表 -->
     <div id="logUploadWrap" class="table-scroll">
       <table class="data-table">
-        <thead><tr><th>ID</th><th>姓名</th><th>区域</th><th>IP</th><th>提交ID</th><th>内容详情</th><th>时间</th></tr></thead>
+        <thead><tr><th class="hide-md">ID</th><th>姓名</th><th class="hide-sm">区域</th><th class="hide-md">IP</th><th class="hide-md">提交ID</th><th>内容详情</th><th>时间</th></tr></thead>
         <tbody id="usageLogTbody"></tbody>
       </table>
     </div>
@@ -748,8 +1067,16 @@ body { display: flex; }
     <!-- 审核记录表 -->
     <div id="logReviewWrap" class="table-scroll" style="display:none">
       <table class="data-table">
-        <thead><tr><th>ID</th><th>审核操作</th><th>审核人</th><th>提交ID</th><th>内容标题</th><th>所属区域</th><th>审核备注</th><th>IP</th><th>时间</th></tr></thead>
+        <thead><tr><th class="hide-md">ID</th><th>审核操作</th><th>审核人</th><th class="hide-md">提交ID</th><th>内容标题</th><th class="hide-sm">所属区域</th><th class="hide-md">审核备注</th><th class="hide-md">IP</th><th>时间</th></tr></thead>
         <tbody id="reviewLogTbody"></tbody>
+      </table>
+    </div>
+
+    <!-- 管理操作表（账号新增/修改/删除、自助注册、删除提交） -->
+    <div id="logAdminWrap" class="table-scroll" style="display:none">
+      <table class="data-table">
+        <thead><tr><th class="hide-md">ID</th><th>操作</th><th>操作人</th><th class="hide-sm">相关区域</th><th class="hide-md">对象ID</th><th>详情</th><th class="hide-md">IP</th><th>时间</th></tr></thead>
+        <tbody id="adminLogTbody"></tbody>
       </table>
     </div>
   </div>
@@ -817,6 +1144,6 @@ body { display: flex; }
   </div>
 </div>
 
-<script src="/app.js?v=20260909-4"></script>
+<script src="/app.4dc069a3146386a9a218be44602611ce.js"></script>
 </body>
 </html>

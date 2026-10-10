@@ -3,31 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>采集内容列表</title>
+<title>采集内容列表 · 南孚在地营销</title>
+<link rel="stylesheet" href="/shared.css?v=5">
+<link rel="stylesheet" href="/style.css?v=5">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fb; color: #111827; padding: 20px; }
-  h1 { margin-bottom: 16px; font-size: 20px; }
+  body { padding: 22px 26px 40px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(16,24,40,.04); cursor: pointer; transition: box-shadow .15s, border-color .15s; }
-  .card:hover { box-shadow: 0 4px 12px rgba(16,24,40,.08); border-color: #2563eb; }
-  .card img { width: 100%; height: 180px; object-fit: cover; display: block; }
-  .card .body { padding: 10px 12px; }
-  .card .caption { font-size: 14px; line-height: 1.4; margin-bottom: 6px; word-break: break-all; }
-  .card .meta { font-size: 12px; color: #9ca3af; display: flex; gap: 12px; }
-  .detail { display: none; position: fixed; inset: 0; background: rgba(17,24,39,.4); backdrop-filter: blur(3px); z-index: 999; align-items: center; justify-content: center; padding: 20px; }
+  /* 本页 .card 是「内容卡」语义，覆盖全局卡片样式（去掉内边距与下外边距） */
+  .card {
+    padding: 0; margin: 0;
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg); overflow: hidden;
+    box-shadow: var(--shadow-xs); cursor: pointer;
+    transition: box-shadow var(--transition), border-color var(--transition), transform var(--transition);
+  }
+  .card:hover { box-shadow: var(--shadow-lg); border-color: var(--border); transform: translateY(-3px); }
+  .card > img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .card .body { padding: 11px 13px; }
+  .card .caption { font-size: 14px; line-height: 1.45; margin-bottom: 7px; color: var(--text); word-break: break-all; }
+  .card .meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .detail {
+    display: none; position: fixed; inset: 0; z-index: 999;
+    background: rgba(17,24,39,.42); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; padding: 20px;
+    animation: fadeIn .2s ease;
+  }
   .detail.open { display: flex; }
-  .detail-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px; }
-  .detail-box img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
-  .back { display: inline-block; margin-bottom: 12px; color: #2563eb; text-decoration: none; font-size: 13px; }
-  .empty { text-align: center; padding: 60px 20px; color: #6b7280; }
-  .empty a { color: #2563eb; }
+  .detail-box {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg); max-width: 720px; width: 100%;
+    max-height: 90vh; overflow-y: auto; padding: 22px;
+    box-shadow: var(--shadow-lg); animation: slideUp .22s var(--ease-out);
+  }
+  .detail-box img { max-width: 100%; border-radius: var(--radius-sm); margin: 8px 0; }
+  .detail-box b { color: var(--text); }
+  .back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; color: var(--brand); font-size: 13px; font-weight: 600; }
+  .back:hover { color: var(--brand-dark); }
 </style>
 </head>
 <body>
 
-<h1>📺 采集内容列表 （共 <span id="cnt">0</span> 条）</h1>
-<a class="back" href="/manager">← 返回主页</a>
+<div class="page-head">
+  <div>
+    <div class="t">采集内容列表</div>
+    <div class="d">共 <span id="cnt">0</span> 条 · 微信视频号监控采集内容</div>
+  </div>
+  <div class="actions">
+    <a class="btn sm" href="/manager">← 返回主页</a>
+  </div>
+</div>
+
 <div class="grid" id="grid"></div>
 
 <div class="detail" id="detail" onclick="if(event.target===this)this.classList.remove('open')">
@@ -46,7 +72,7 @@ async function load() {
 
     document.getElementById("grid").innerHTML = items.map(c => `
       <div class="card" onclick="showDetail(${c.id})">
-        ${c.thumb_url ? `<img src="${esc(c.thumb_url)}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22180%22><rect fill=%22%23f3f4f6%22 width=%22260%22 height=%22180%22/><text x=%22130%22 y=%2290%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2232%22>${c.is_video?'🎬':'📄'}</text></svg>'">` : `<div style="height:180px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:40px">${c.is_video?'🎬':'📄'}</div>`}
+        ${c.thumb_url ? `<img src="${esc(c.thumb_url)}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22180%22><rect fill=%22%23f3f4f6%22 width=%22260%22 height=%22180%22/><text x=%22130%22 y=%2290%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2232%22>${c.is_video?'🎬':'📄'}</text></svg>'">` : `<div style="height:180px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;font-size:40px">${c.is_video?'🎬':'📄'}</div>`}
         <div class="body">
           <div class="caption">${esc(c.caption || c.title || "(无内容)")}</div>
           <div class="meta">
@@ -77,21 +103,100 @@ async function showDetail(id) {
     } else if (m.thumb) mediaHTML += `<img src="${esc(m.thumb)}" style="max-width:200px;border-radius:8px;margin:4px" />`;
   });
 
+  const needsOcr = rules.some(r => r.needs_ocr_review && !r.recheck_verdict);
+  const recheckBtn = needsOcr ? `<button class="btn sm primary" style="margin-top:8px" onclick="recheckTypo(${d.id},'content')">🔁 形近错字二次确认（OCR 取证）</button>` : "";
+
   document.getElementById("detailBox").innerHTML = `
     <b>视频号:</b> ${esc(d.channel_name || "")} · ${d.publish_time || "未知"}<br>
     ${mediaHTML}
     <p style="margin:8px 0"><b>文案:</b> ${esc(d.caption || d.title || "-")}</p>
     ${d.ocr_text ? `<p><b>画面文字:</b> ${esc(d.ocr_text)}</p>` : ""}
     ${d.transcript ? `<p><b>语音:</b> ${esc(d.transcript)}</p>` : ""}
-    <p style="font-size:13px;color:#9ca3af">👁${stats.read||0} ❤${stats.like||0} 💬${stats.comment||0} 🔄${stats.forward||0} ⭐${stats.fav||0}</p>
-    ${ai.interpretation ? `<div style="background:#f3f4f6;padding:10px;border-radius:8px;margin:8px 0"><b>🤖 AI 解读:</b><br>${esc(ai.interpretation)}</div>` : ""}
+    <p style="font-size:13px;color:var(--text-muted)">👁${stats.read||0} ❤${stats.like||0} 💬${stats.comment||0} 🔄${stats.forward||0} ⭐${stats.fav||0}</p>
+    ${ai.interpretation ? `<div style="background:var(--surface-alt);border:1px solid var(--border-light);padding:10px;border-radius:8px;margin:8px 0"><b>🤖 AI 解读:</b><br>${esc(ai.interpretation)}</div>` : ""}
     ${ai.conclusion ? `<p><b>AI 结论:</b> ${esc(ai.conclusion)}</p>` : ""}
-    ${!ai.used && !ai.error ? `<p style="color:#9ca3af;font-size:12px">⏳ AI 分析尚未完成，可到主页查看</p>` : ""}
-    ${rules.length ? `<b>命中规则:</b>${rules.map(r => `<div style="font-size:13px;padding:2px 0">[${r.severity}] ${esc(r.rule_name)}: ${esc(r.matched_text || "")}</div>`).join("")}` : ""}`;
+    ${!ai.used && !ai.error ? `<p style="color:var(--text-muted);font-size:12px">⏳ AI 分析尚未完成，可到主页查看</p>` : ""}
+    ${rules.length ? `<b>命中规则:</b>${rules.map((r, idx) => renderViolationWithRecheck(r, idx)).join("")}` : ""}
+    ${recheckBtn}`;
   document.getElementById("detail").classList.add("open");
 }
 
 function esc(s) { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+// 单条违规：附上"复判"状态徽标 + 复判详情折叠区 + 「这是误报」按钮
+function renderViolationWithRecheck(r, idx) {
+  const v = r.recheck_verdict;
+  const fpMark = r.false_positive
+    ? `<span class="badge muted" title="已标误报：${esc(r.false_positive_by||"")} · ${esc(r.false_positive_at||"")}">已标误报</span>`
+    : "";
+  const recheckBadge = v === "uphold" ? `<span class="badge green">复判: 仍违规</span>`
+              : v === "discard" ? `<span class="badge green">复判: 丢弃</span>`
+              : v === "uncertain" ? `<span class="badge yellow">复判: 转人工</span>`
+              : (r.needs_ocr_review ? `<span class="badge muted">可二次确认</span>` : "");
+  const fpBtn = r.false_positive
+    ? ""
+    : `<button class="btn sm" style="margin-left:6px" onclick="markContentFalsePositive(${d.id},${idx})">这是误报</button>`;
+  const main = `<div style="font-size:13px;padding:2px 0;display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+    <span style="flex:1;min-width:0">[${esc(r.severity||"")}] ${esc(r.rule_name||"")}: ${esc(r.matched_text||"")} ${recheckBadge} ${fpMark}</span>
+    ${fpBtn}
+  </div>`;
+  const detail = (!v && !r.false_positive) ? "" : `
+    <div style="font-size:12px;color:var(--text-muted);margin:2px 0 6px 16px;padding:6px 8px;background:var(--surface-alt);border-radius:6px">
+      ${v ? `<b>复判理由：</b>${esc(r.recheck_reason||"")}<br>` : ""}
+      ${r.false_positive ? `<b>人工标误报：</b>${esc(r.false_positive_by||"")} @ ${esc(r.false_positive_at||"")}${r.false_positive_note?`；备注：${esc(r.false_positive_note)}`:""}<br>` : ""}
+      ${r.recheck_ocr ? `<b>OCR 文字：</b>${esc(r.recheck_ocr)}<br>` : ""}
+      ${(r.recheck_ocr_seen||[]).length?`<b>OCR 读到的形近字：</b>${esc((r.recheck_ocr_seen||[]).join("、"))}<br>`:""}
+      ${(r.recheck_standard_seen||[]).length?`<b>OCR 读到的标准写法：</b>${esc((r.recheck_standard_seen||[]).join("、"))}<br>`:""}
+      ${r.recheck_at ? `<b>复判时间：</b>${esc(r.recheck_at)}` : ""}
+    </div>`;
+  return main + detail;
+}
+
+// 视频号采集内容：单条违规标误报
+async function markContentFalsePositive(contentId, idx) {
+  if (!confirm("这条违规你确认是 AI 误报吗？\n\n点「确定」后这条违规会从列表里移除，状态按剩余违规自动重算。")) return;
+  const note = prompt("备注（可空，会留作审计）:", "") || "";
+  try {
+    const r = await fetch(`/api/contents/${contentId}/violations/${idx}/mark-false-positive`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      alert("操作失败：" + (data.detail || JSON.stringify(data)));
+      return;
+    }
+    alert(`已标误报。剩余违规 ${data.remaining} 条；新状态：${data.new_status||""} · ${data.new_risk||""}`);
+    if (typeof showDetail === "function") showDetail(contentId);
+  } catch (e) {
+    alert("请求失败：" + e.message);
+  }
+}
+
+// 形近错字复判：调后端 OCR + AI 复判，刷新当前详情
+async function recheckTypo(id, kind) {
+  if (!confirm("将调多模态模型做 OCR 取证 + 二次确认，耗时约 5-15 秒。继续？")) return;
+  const url = kind === "content"
+    ? `/api/contents/${id}/recheck-typo`
+    : `/api/submissions/${id}/recheck-typo`;
+  const detailBox = document.getElementById("detailBox");
+  if (detailBox) detailBox.innerHTML = `<div class="hint">⏳ OCR 取证 + 复判中（5-15秒）…</div>`;
+  try {
+    const r = await fetch(url, { method: "POST", credentials: "same-origin" });
+    const data = await r.json();
+    if (!r.ok) {
+      alert("复判失败：" + (data.detail || JSON.stringify(data)));
+      return;
+    }
+    const s = data.summary || {};
+    alert(`复判完成：\n总计 ${s.total||0} 条；丢弃 ${s.discard||0} / 保留 ${s.uphold||0} / 转人工 ${s.uncertain||0}\n新状态：${data.new_status||""} · ${data.new_risk||""}`);
+    if (kind === "content" && typeof showDetail === "function") showDetail(id);
+  } catch (e) {
+    alert("请求失败：" + e.message);
+  }
+}
 
 load();
 </script>

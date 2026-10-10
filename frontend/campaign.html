@@ -4,573 +4,467 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>双百战役 · 指挥驾驶舱</title>
+<link rel="stylesheet" href="/shared.css?v=5" />
+<link rel="stylesheet" href="/style.css?v=5" />
 <style>
 /* ═══════════════════════════════════════════════════════
-   双百战役 · 指挥驾驶舱
-   设计语言：南孚「聚能环」能量 × 战地指挥舱
-   深海军蓝夜 / 南孚金 / 电光蓝 / 等宽仪表数字
+   双百战役 · 指挥驾驶舱 — 页面级补充样式
+   统一设计系统（shared.css / style.css），仅使用设计令牌
    ═══════════════════════════════════════════════════════ */
+
+/* ── 旧变量 → 设计令牌 兼容映射（脚本模板中的内联样式仍在使用）── */
 :root {
-  --bg:        #fafbfd;   /* 页面底色 · 近白 */
-  --bg-2:      #ffffff;
-  --panel:     #ffffff;   /* 面板 */
-  --panel-2:   #f7f8fa;   /* 面板次级 */
-  --line:      #e8ebf0;   /* 边框 */
-  --line-soft: #eff2f6;   /* 细分隔线 */
-
-  --gold:      #b91c1c;   /* 主色 · 深红 */
-  --gold-2:    #991b1b;
-  --gold-dim:  rgba(185,28,28,.08);
-
-  --electric:  #3b82f6;   /* 蓝（仅数据/链接点缀）*/
-  --electric-dim: rgba(59,130,246,.08);
-
-  --ink:       #111827;   /* 主文字 */
-  --ink-2:     #3f4a5c;   /* 次级 */
-  --ink-3:     #6b7280;   /* 弱 */
-
-  --ok:        #16a34a;  --ok-bg:  #eefaf1;
-  --warn:      #d97706;  --warn-bg: #fdf6ec;
-  --danger:    #dc2626;  --danger-bg: #fdf0f0;
-
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --ease: cubic-bezier(.22,1,.36,1);
-
-  --grad: linear-gradient(135deg, #c53030, #991b1b);   /* 深红柔和渐变 */
+  --gold:  var(--brand);
+  --ink:   var(--text);
+  --ink-3: var(--text-muted);
+  --line:  var(--border);
+  --bg-2:  var(--surface);
+  --mono:  ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
-* , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  font-family: var(--sans);
-  font-size: 14px; line-height: 1.6; color: var(--ink);
-  background-color: var(--bg);
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-}
-a { color: var(--electric); text-decoration: none; }
-a:hover { color: var(--gold); }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #eef2f9; }
-::-webkit-scrollbar-thumb { background: #cdd6e4; border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: #b3c0d4; }
+/* ── 页面容器 ── 按 1440 视口排布：内容 1320，两侧各留 60 */
+.wrap { max-width: 1320px; margin: 0 auto; padding: 22px 28px 44px; }
 
-.hidden { display: none !important; }
-.mt { margin-top: 12px; }
-.mono { font-family: var(--mono); }
-.hint { font-size: 12px; color: var(--ink-3); }
-.hint b { color: var(--ink-2); font-weight: 600; }
-
-.wrap { max-width: 1400px; margin: 0 auto; padding: 22px 26px 56px; position: relative; z-index: 1; }
-
-/* ── 顶栏 ── */
-.topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
-.brand { display: flex; align-items: center; gap: 14px; }
-.brand-mark {
-  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; color: #fff;
-  background: var(--grad);
-  box-shadow: 0 2px 6px -2px rgba(185,28,28,.35);
-}
-.brand-mark svg { width: 23px; height: 23px; }
-.brand h1 { font-size: 21px; font-weight: 800; letter-spacing: .5px; line-height: 1.25;
-  background: var(--grad);
-  -webkit-background-clip: text; background-clip: text; color: transparent; }
-.brand .sub { font-size: 12px; color: var(--ink-3); margin-top: 4px; letter-spacing: .4px; }
-.brand .sub b { color: var(--gold); font-weight: 600; }
-.top-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
-.live {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-size: 12px; color: var(--ok); padding: 5px 11px;
-  border: 1px solid rgba(52,211,153,.35); border-radius: 9999px;
-  background: var(--ok-bg); white-space: nowrap;
-  box-shadow: 0 0 16px -6px rgba(52,211,153,.5);
-}
-.live .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); position: relative; }
-.live .dot::after {
-  content: ""; position: absolute; inset: -4px; border-radius: 50%;
-  border: 1px solid var(--ok); animation: pulse 1.8s ease-out infinite;
-}
-@keyframes pulse { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.6); opacity: 0; } }
-.top-right b { color: var(--ink); font-weight: 600; }
-.sep { color: var(--line); margin: 0 2px; }
-.top-right a { font-size: 13px; color: var(--ink-2); }
-.top-right a:hover { color: var(--electric); }
-
-/* ── 指挥舱：聚能环 + KPI ── */
-.command-strip {
-  display: grid; grid-template-columns: 320px 1fr; gap: 18px; margin-bottom: 18px;
-}
-.ring-panel, .kpi-grid {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgba(16,24,40,.04);
-}
-.ring-panel { padding: 22px; display: flex; align-items: center; gap: 20px; position: relative; overflow: hidden; }
-.ring-panel::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--grad); }
-.ring-box { position: relative; width: 128px; height: 128px; flex-shrink: 0; }
-.ring-box svg { width: 128px; height: 128px; transform: rotate(-90deg); }
-.ring-bg { fill: none; stroke: #e9edf5; stroke-width: 10; }
-.ring-fg {
-  fill: none; stroke: url(#ringGrad); stroke-width: 10; stroke-linecap: round;
-  transition: stroke-dashoffset .9s var(--ease);
-}
-.ring-center {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center;
-}
-.ring-center .num { font-family: var(--mono); font-size: 32px; font-weight: 800; line-height: 1; color: var(--ink); }
-.ring-center .lbl { font-size: 11px; color: var(--ink-3); margin-top: 6px; letter-spacing: 1px; }
-.ring-meta .eyebrow { font-size: 11px; color: var(--gold); letter-spacing: 2px; text-transform: uppercase; }
-.ring-meta h2 { font-size: 18px; font-weight: 700; margin: 6px 0 10px; color: var(--ink); }
-.ring-meta .line { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); padding: 5px 0; border-bottom: 1px dashed #e9edf5; }
-.ring-meta .line:last-child { border-bottom: none; }
-.ring-meta .line b { color: var(--ink); font-family: var(--mono); }
-
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 6px; }
-.kpi { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: 12px; border: 1px solid var(--line); background: #fff; position: relative; overflow: hidden; transition: box-shadow .2s, transform .2s; }
-.kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--grad); }
-.kpi:hover { box-shadow: 0 8px 20px -12px rgba(31,45,80,.22); transform: translateY(-1px); }
-.kpi-ic { width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--panel-2); color: var(--ink-2); }
-.kpi-ic svg { width: 23px; height: 23px; }
-.kpi-main { min-width: 0; }
-.kpi .ic { font-size: 12px; color: var(--ink-3); }
-.kpi .num { font-family: var(--mono); font-size: 26px; font-weight: 800; line-height: 1.15; margin: 2px 0 0; letter-spacing: -.4px; color: var(--ink); }
-.kpi .lbl { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
-.kpi.gold .kpi-ic { background: var(--gold-dim); color: var(--gold); }
-.kpi.gold .num { color: var(--gold); }
-.kpi.electric .kpi-ic { background: var(--electric-dim); color: var(--electric); }
-.kpi.electric .num { color: var(--electric); }
-.kpi.warn .kpi-ic { background: var(--warn-bg); color: var(--warn); }
-.kpi.warn .num { color: var(--warn); }
-.kpi.ok .kpi-ic { background: var(--ok-bg); color: var(--ok); }
-.kpi.ok .num { color: var(--ok); }
-.kpi.gold::before { background: var(--gold); }
-.kpi.electric::before { background: var(--electric); }
-.kpi.warn::before { background: var(--warn); }
-.kpi.ok::before { background: var(--ok); }
-
-/* ── 工具栏 ── */
-.toolbar {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 12px 14px; margin-bottom: 16px;
-  background: #fff; border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgba(16,24,40,.04);
-}
-.toolbar .spacer { flex: 1; }
-.toolbar select, .toolbar input:not([type="checkbox"]) {
-  height: 36px; padding: 0 12px; font-size: 13px; font-family: inherit; color: var(--ink);
-  background: #fff; border: 1px solid var(--line); border-radius: 9px;
-  outline: none; transition: border-color .2s, box-shadow .2s;
-}
-.toolbar select { padding-right: 30px; appearance: none; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M6 8L1 3h10z' fill='%238A94A6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 11px center;
-}
-.toolbar input { width: 150px; }
-.toolbar input::placeholder { color: var(--ink-3); }
-.toolbar select:focus, .toolbar input:focus { border-color: var(--electric); box-shadow: 0 0 0 3px var(--electric-dim); }
-
-/* ── 分段 Tab ── */
-.tabs {
-  display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 18px;
-  background: #fff; border: 1px solid var(--line);
-  border-radius: 10px; flex-wrap: wrap;
-}
-.tabs button {
-  border: none; background: none; padding: 9px 18px; font-size: 13px; font-weight: 500;
-  cursor: pointer; color: var(--ink-2); border-radius: 8px; font-family: inherit;
-  transition: color .2s, background .2s;
-}
-.tabs button:hover { color: var(--ink); background: var(--panel-2); }
-.tabs button.active {
-  background: var(--grad); color: #fff; font-weight: 600;
-}
-
-/* ── 卡片 ── */
-.card {
-  background: #fff; border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px;
-  box-shadow: 0 1px 2px rgba(16,24,40,.04);
+/* ═══════════════════════════════════════════════════════
+   指挥台（深色 Hero）· 单行指挥条：左标题 / 中仪表 / 右操作
+   ═══════════════════════════════════════════════════════ */
+.deck {
   position: relative; overflow: hidden;
+  border-radius: 16px; padding: 18px 26px; margin-bottom: 16px;
+  background:
+    radial-gradient(120% 170% at 100% 0%, rgba(220,38,38,.30) 0%, rgba(220,38,38,0) 56%),
+    radial-gradient(95% 150% at 0% 100%, rgba(140,28,32,.5) 0%, rgba(140,28,32,0) 62%),
+    linear-gradient(135deg, #21171a 0%, #291a1e 48%, #311a1f 100%);
+  box-shadow: 0 20px 44px -20px rgba(24,12,14,.72), inset 0 1px 0 rgba(255,255,255,.06);
+  color: #fff;
 }
-.card::before { content:""; position:absolute; left:0; top:0; right:0; height:2px;
-  background: var(--grad); opacity: .85; }
-.card h2 {
-  display: flex; align-items: center; gap: 10px; margin: 0 0 16px;
-  font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: .2px;
+/* 细网格纹理（指挥舱质感）*/
+.deck::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  background-image:
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size: 34px 34px;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.9), transparent 88%);
+  mask-image: linear-gradient(180deg, rgba(0,0,0,.9), transparent 88%);
 }
-.card h2 .tick { width: 4px; height: 16px; border-radius: 2px; background: var(--grad); }
-.card h2 .hint { font-weight: 400; }
-.card-head {
+/* 三段式指挥条：标题弹性占位，仪表与操作按内容定宽 */
+.deck-bar {
+  position: relative; display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center; gap: 30px;
+}
+.deck-id { min-width: 0; }
+.deck .kicker {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 7px;
+  font-size: 11px; font-weight: 600; letter-spacing: .16em; color: rgba(255,255,255,.6);
+}
+.deck .kicker i {
+  width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239,68,68,.18); animation: deckPulse 2s ease-in-out infinite;
+}
+@keyframes deckPulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+.deck h1 { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.025em; color: #fff; }
+.deck .deck-sub { margin-top: 5px; font-size: 12px; color: rgba(255,255,255,.66); }
+.deck .deck-sub b { color: #fff; font-weight: 650; }
+.deck-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.deck .deck-badge {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; color: #fecaca;
+  background: rgba(220,38,38,.2); border: 1px solid rgba(248,113,113,.32);
+}
+.deck .deck-badge i { width: 6px; height: 6px; border-radius: 50%; background: #f87171; }
+.deck .who { font-size: 12px; color: rgba(255,255,255,.6); }
+.deck .who b { color: #fff; }
+/* 深色态按钮 */
+.deck .btn {
+  background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+}
+.deck .btn:hover { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.32); color: #fff; }
+
+/* 指挥台仪表：横排 + 竖线分隔，压缩到一行高度 */
+.deck-meters { position: relative; display: flex; align-items: flex-start; }
+.deck-meter { padding: 0 22px; border-left: 1px solid rgba(255,255,255,.11); }
+.deck-meter:first-child { padding-left: 0; border-left: 0; }
+.deck-meter:last-child { padding-right: 0; }
+.deck-meter .m-lbl { font-size: 11px; color: rgba(255,255,255,.55); white-space: nowrap; }
+.deck-meter .m-val {
+  margin-top: 5px; font-size: 24px; font-weight: 800; line-height: 1; letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums; color: #fff;
+}
+.deck-meter .m-val.accent { color: #fca5a5; }
+.deck-meter .m-sub { margin-top: 4px; font-size: 10.5px; color: rgba(255,255,255,.44); white-space: nowrap; }
+.deck-meter .m-sub b { color: rgba(255,255,255,.85); font-weight: 650; }
+
+/* 中等屏：仪表另起一行通栏；窄屏：全部纵向堆叠 */
+@media (max-width: 1280px) {
+  .deck-bar { grid-template-columns: minmax(0, 1fr) auto; row-gap: 16px; }
+  .deck-meters { grid-column: 1 / -1; }
+  .deck-meter { flex: 1 1 0; min-width: 0; }
+}
+@media (max-width: 820px) {
+  .deck { padding: 16px 18px; border-radius: 14px; }
+  .deck-bar { grid-template-columns: 1fr; gap: 14px; }
+  .deck h1 { font-size: 19px; }
+  .deck-actions { justify-content: flex-start; }
+  .deck-meter { padding: 0 12px; }
+  .deck-meter .m-val { font-size: 21px; }
+  .deck-meter .m-sub { display: none; }
+}
+
+/* ── 控制台：核心指标 + 操作/筛选 合并为一块卡片，减少页面分带 ── */
+.console {
+  background: var(--surface); border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
+  padding: 6px 10px 8px; margin-bottom: 16px;
+}
+.console #statGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 0; }
+.console-sep { height: 1px; background: var(--border-light); margin: 2px 2px 0; }
+
+/* 筛选行：贴在同一张卡内，不再单独铺底色 */
+.toolbar .spacer { flex: 1 1 12px; min-width: 12px; }
+.filter-bar {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 10px 6px 4px; margin-bottom: 0;
+}
+.filter-bar .btn { height: 34px; padding: 0 12px; }
+.filter-bar input, .filter-bar select { height: 34px; font-size: 13px; }
+/* 覆盖 style.css 的 min-width:140，保证 1440 下筛选行不折行 */
+.filter-bar select, .filter-bar input:not([type="checkbox"]) { min-width: 0; width: 104px; }
+.filter-bar #codeInput { width: 140px; }
+.filter-bar #fCreator { width: 116px; }
+
+/* KPI 卡在控制台内改为「扁平 + 竖分隔」，避免卡中卡 */
+.console #statGrid .kpi {
+  border: 0; border-radius: var(--radius); background: transparent; box-shadow: none;
+  padding: 14px 18px;
+}
+.console #statGrid .kpi::before { display: none; }
+.console #statGrid .kpi:hover { transform: none; box-shadow: none; background: var(--surface-alt); border-color: transparent; }
+.console #statGrid .kpi + .kpi { border-left: 1px solid var(--border-light); }
+
+/* ── 榜单卡片：标题下加细分隔线，层次更清楚 ── */
+.tabpane .card > h2 { padding-bottom: 10px; border-bottom: 1px solid var(--border-light); margin-bottom: 14px; }
+
+/* ── 分段 Tab（复用 .seg 基样式，激活类由脚本切换为 .active）── */
+.tabs { flex-wrap: wrap; margin-bottom: 16px; }
+.tabs button.active { background: var(--brand-grad); color: var(--surface); font-weight: 600; box-shadow: var(--shadow-brand); }
+
+/* ── 榜单布局：三大榜横排一行 + 战区总榜通栏，消除 2×2 高度不齐 ── */
+.board-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.board-grid > .card { margin: 0; }
+.board-grid > .card + .card { margin-top: 0; }
+
+/* ── #statGrid 内由脚本渲染的 KPI 卡片（对齐 .stat-card 视觉）── */
+#statGrid .kpi {
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px;
+  padding: 18px 20px; background: var(--surface); border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+}
+#statGrid .kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--brand-grad); opacity: .9; }
+#statGrid .kpi:hover { box-shadow: var(--shadow); transform: translateY(-2px); border-color: var(--border); }
+#statGrid .kpi-ic {
+  width: 46px; height: 46px; flex-shrink: 0; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-alt); color: var(--text-secondary);
+}
+#statGrid .kpi-ic svg { width: 22px; height: 22px; }
+#statGrid .kpi-main { min-width: 0; }
+/* 脚本会渲染一个短标签（如「作品」），与下方 .lbl（如「总作品数」）语义重复，隐藏以对齐 .stat-card */
+#statGrid .kpi .ic { display: none; }
+#statGrid .kpi .num {
+  font-size: 27px; font-weight: 800; line-height: 1.1; color: var(--text);
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+#statGrid .kpi .lbl { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+/* 多色只保留在图标上，顶部条统一品牌红——层次更干净 */
+#statGrid .kpi.gold .kpi-ic     { background: var(--brand-bg);   color: var(--brand); }
+#statGrid .kpi.electric .kpi-ic { background: var(--c-blue-bg);  color: var(--c-blue); }
+#statGrid .kpi.warn .kpi-ic     { background: var(--amber-bg);   color: var(--amber); }
+#statGrid .kpi.ok .kpi-ic       { background: var(--green-bg);   color: var(--green); }
+
+/* ── 榜单（横向条形图，脚本渲染）── 与共享 .rank-row 同一观感 ── */
+/* 限高 + 内部滚动：四张榜单高度接近，2×2 网格不会被长榜拉失衡；底部渐隐代替生硬的截断 */
+.rank-chart {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 300px; overflow-y: auto; padding-right: 4px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 22px), transparent 100%);
+}
+.rank-chart::-webkit-scrollbar { width: 6px; }
+.rank-chart::-webkit-scrollbar-thumb { background: #d3d7de; border-radius: 9999px; }
+.rank-chart-item {
   display: flex; align-items: center; gap: 12px;
-  margin: -20px -22px 16px; padding: 16px 22px 14px;
-  border-bottom: 1px solid var(--line-soft);
+  padding: 10px 12px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border-light);
+  transition: all var(--transition);
 }
-.card-head .ic-badge {
-  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--gold-dim); color: var(--gold);
-}
-.card-head .ic-badge svg { width: 18px; height: 18px; }
-.card-head h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); display: flex; align-items: baseline; gap: 8px; }
-.card-head .hint { font-size: 12px; color: var(--ink-3); font-weight: 400; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
-
-/* ── 榜单 ── */
-.board-list { display: flex; flex-direction: column; gap: 8px; }
-@keyframes rowIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.board-row {
-  display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 12px;
-  background: #fff; border: 1px solid var(--line-soft);
-  transition: transform .2s, box-shadow .2s, border-color .2s;
-  animation: rowIn .5s var(--ease) both;
-}
-.board-row:nth-child(1) { animation-delay: .02s; }
-.board-row:nth-child(2) { animation-delay: .06s; }
-.board-row:nth-child(3) { animation-delay: .10s; }
-.board-row:nth-child(4) { animation-delay: .14s; }
-.board-row:nth-child(5) { animation-delay: .18s; }
-.board-row:nth-child(6) { animation-delay: .22s; }
-.board-row:nth-child(7) { animation-delay: .26s; }
-.board-row:nth-child(8) { animation-delay: .30s; }
-.board-row:hover { border-color: var(--electric); box-shadow: 0 10px 24px -14px rgba(59,130,246,.45); transform: translateX(3px); }
-.board-row .rank {
-  width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 13px; font-weight: 800; color: var(--ink-3);
-  background: var(--panel-2); border: 1px solid var(--line);
-}
-.board-row .rank.r1 { background: var(--grad); color:#fff; border-color: transparent; box-shadow: 0 1px 3px rgba(185,28,28,.3); }
-.board-row .rank.r2 { background: linear-gradient(160deg,#60a5fa,#2563eb); color:#fff; border-color: transparent; }
-.board-row .rank.r3 { background: linear-gradient(160deg,#cbd5e1,#94a3b8); color:#0f172a; border-color: transparent; }
-.board-row.r1 { border-color: rgba(185,28,28,.28); background: linear-gradient(180deg, #fff, #fdf3f3); }
-.board-row.r2 { border-color: rgba(59,130,246,.24); }
-.board-row.r3 { border-color: rgba(148,163,184,.28); }
-.board-row .info { flex: 1; min-width: 0; }
-.board-row .info .t { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.board-row .info .d { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
-.board-row .val { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--gold); white-space: nowrap; }
-.board-row .val .hint { font-family: var(--sans); color: var(--ink-3); font-weight: 400; }
-
-/* ── 战区地图 ── */
-.zone-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-.zone {
-  position: relative; padding: 16px 16px 14px; border-radius: 14px; overflow: hidden;
-  background: #fff; border: 1px solid var(--line-soft);
-  transition: transform .25s var(--ease), box-shadow .25s;
-  animation: rowIn .5s var(--ease) both;
-}
-.zone::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background: var(--grad); }
-.zone:hover { transform: translateY(-4px); box-shadow: 0 14px 30px -14px rgba(31,45,80,.35); }
-.zone .z-name { font-size: 14px; font-weight: 700; color: var(--ink); }
-.zone .z-val { font-family: var(--mono); font-size: 28px; font-weight: 800; margin: 8px 0 2px; line-height: 1;
-  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.zone .z-sub { font-size: 11px; color: var(--ink-3); }
-.zone .z-bar { height: 6px; border-radius: 9999px; background: #eef1f7; margin-top: 12px; overflow: hidden; }
-.zone .z-bar span { display: block; height: 100%; width: 0; background: var(--grad); border-radius: 9999px; transition: width 1s var(--ease); }
-
-/* ── 排行榜（横向条形图） ── */
-.rank-chart { display: flex; flex-direction: column; gap: 11px; }
-.rank-chart-item { display: flex; align-items: center; gap: 12px; }
+.rank-chart-item:hover { border-color: var(--border); box-shadow: var(--shadow-xs); transform: translateX(2px); }
 .rank-chart-item .rc-rank {
-  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-  border-radius: 50%; font-family: var(--mono);
-  font-weight: 700; color: var(--ink-3); flex-shrink: 0; font-size: 12px;
-  background: var(--panel-2); border: 1px solid var(--line);
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
+  background: var(--surface-alt); color: var(--text-secondary);
 }
-.rank-chart-item.top1 .rc-rank { background: var(--grad); color: #fff; border-color: transparent; font-weight: 800; }
-.rank-chart-item.top2 .rc-rank { background: #eff4ff; color: #2563eb; border-color: #dbe7ff; font-weight: 700; }
-.rank-chart-item.top3 .rc-rank { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; font-weight: 700; }
 .rank-chart-item .rc-body { flex: 1; min-width: 0; }
-.rank-chart-item .rc-line { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 3px; }
-.rank-chart-item .rc-title { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank-chart-item .rc-desc { font-size: 11px; color: var(--ink-3); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank-chart-item .rc-val { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
-.rank-chart-item .rc-bar { height: 6px; border-radius: 9999px; background: #eef1f7; overflow: hidden; }
-.rank-chart-item .rc-bar span { display: block; height: 100%; width: 0; border-radius: 9999px; transition: width .9s var(--ease); }
-.rank-chart-item.top1 .rc-bar span { background: var(--grad); }
-.rank-chart-item.top2 .rc-bar span { background: linear-gradient(90deg, #60a5fa, #2563eb); }
-.rank-chart-item.top3 .rc-bar span { background: linear-gradient(90deg, #cbd5e1, #94a3b8); }
-.rank-chart-item:not(.top1):not(.top2):not(.top3) .rc-bar span { background: #d8dee9; }
+.rank-chart-item .rc-line { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.rank-chart-item .rc-title { font-size: 13px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-chart-item .rc-desc { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-chart-item .rc-val { font-size: 13px; font-weight: 750; color: var(--brand); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rank-chart-item .rc-bar { height: 6px; border-radius: 9999px; background: var(--surface-alt); overflow: hidden; }
+.rank-chart-item .rc-bar span { display: block; height: 100%; width: 0; border-radius: 9999px; background: var(--brand-grad); transition: width .9s var(--ease-out); }
+.rank-chart-item.top1 .rc-rank { background: var(--medal-gold);   color: #fff; box-shadow: 0 4px 10px -3px rgba(217,119,6,.5); }
+.rank-chart-item.top2 .rc-rank { background: var(--medal-silver); color: #fff; }
+.rank-chart-item.top3 .rc-rank { background: var(--medal-bronze); color: #fff; }
+.rank-chart-item.top1 .rc-bar span { background: var(--medal-gold); }
 
-/* 榜单行数值进度条 */
-.board-bar { height: 4px; border-radius: 9999px; background: #eef1f7; margin-top: 7px; overflow: hidden; }
-.board-bar span { display: block; height: 100%; width: 0; background: var(--grad); border-radius: 9999px; transition: width .9s var(--ease); }
-
-/* ── 空态 ── */
-.empty { text-align: center; color: var(--ink-3); padding: 44px 16px; font-size: 13px; }
-.empty .big { font-size: 36px; margin-bottom: 10px; opacity: .7; }
-
-/* ── 表格 ── */
-.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th, .data-table td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
-.data-table th { font-size: 11px; font-weight: 600; color: var(--ink-3); letter-spacing: .5px; text-transform: uppercase; background: var(--panel-2); }
-.data-table tbody tr { transition: background .15s; }
-.data-table tbody tr:hover { background: #f4f7fc; }
-.data-table td.num, .data-table td code { font-family: var(--mono); }
-.data-table code { font-size: 12px; background: var(--electric-dim); color: var(--electric); padding: 2px 7px; border-radius: 5px; }
-
-/* ── Badge ── */
-.badge {
-  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px;
-  font-size: 12px; font-weight: 600; white-space: nowrap; letter-spacing: .3px;
+/* ── 战区总榜（脚本渲染）── 通栏后 6 个战区一排铺满 ── */
+.zone-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.zone {
+  position: relative; overflow: hidden; padding: 14px 16px;
+  border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-slow), box-shadow var(--transition-slow), border-color var(--transition);
 }
-.badge.green  { color: var(--ok);    background: var(--ok-bg); }
-.badge.blue   { color: var(--electric); background: var(--electric-dim); }
-.badge.yellow { color: var(--warn);  background: var(--warn-bg); }
-.badge.muted  { color: var(--ink-2); background: var(--panel-2); }
+.zone::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--brand-grad); opacity: .9; }
+.zone:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--border); }
+.zone .z-name { font-size: 13px; font-weight: 650; color: var(--text); }
+.zone .z-val { font-size: 26px; font-weight: 800; line-height: 1; margin: 8px 0 3px; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.zone .z-sub { font-size: 11px; color: var(--text-muted); }
+.zone .z-bar { height: 6px; border-radius: 9999px; background: var(--surface-alt); margin-top: 12px; overflow: hidden; }
+.zone .z-bar span { display: block; height: 100%; width: 0; border-radius: 9999px; background: var(--brand-grad); transition: width 1s var(--ease-out); }
 
-/* ── 打分 / 详情 ── */
-.score-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 14px 0; }
-.score-item { background: #fff; border: 1px solid var(--line-soft); border-radius: 12px; padding: 16px 12px; text-align: center; box-shadow: 0 4px 14px -8px rgba(31,45,80,.12); }
-.score-item .v { font-family: var(--mono); font-size: 26px; font-weight: 800; color: var(--gold); line-height: 1.1; }
-.score-item .l { font-size: 11px; color: var(--ink-3); margin-top: 6px; letter-spacing: .4px; }
-.dim-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
-.dim-chip { background: #fff; border: 1px solid var(--line-soft); border-radius: 9px; padding: 6px 12px; font-size: 12px; color: var(--ink-2); }
-.dim-chip b { color: var(--electric); font-family: var(--mono); font-size: 14px; }
+/* ── 榜单下钻 ── */
+.rank-chart-item.clickable { cursor: pointer; }
+.rank-chart-item.clickable:hover { border-color: var(--brand-soft); background: var(--brand-bg); }
+.rank-chart-item .rc-go { flex-shrink: 0; font-size: 11px; color: var(--text-muted); opacity: 0; transition: opacity var(--transition); }
+.rank-chart-item.clickable:hover .rc-go { opacity: 1; color: var(--brand); }
+.zone.clickable { cursor: pointer; }
 
-/* 评分标准说明 */
-.ss-box { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px 14px; margin: 12px 0; }
-.ss-title { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
-.ss-title::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--gold-dim); }
-.ss-line { font-size: 12px; color: var(--ink-2); line-height: 1.9; }
-.ss-line b { color: var(--ink); }
-.ss-line .hl { color: var(--gold); font-weight: 700; }
+/* ── 可排序表头（一键排序）── */
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--brand); }
+th.sortable .sort-ind { display: inline-block; margin-left: 4px; font-style: normal; font-size: 10px; color: var(--text-muted); opacity: .5; }
+th.sortable .sort-ind.on { color: var(--brand); opacity: 1; }
 
-/* 留存 / 互动子项明细 */
-.sub-score { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
-.sub-score .si { background: #fff; border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px 8px; text-align: center; }
-.sub-score .si .l { font-size: 11px; color: var(--ink-3); }
-.sub-score .si .v { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--electric); margin-top: 3px; }
-.sub-score .si .v b { color: var(--ink-3); font-size: 11px; font-weight: 500; }
+/* ── 下钻弹窗列表 ── */
+.drill-sec { margin-bottom: 16px; }
+.drill-sec h4 { font-size: 12px; color: var(--text-muted); margin: 0 0 8px; font-weight: 600; }
+.drill-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border-light); border-radius: var(--radius); background: var(--surface); margin-bottom: 6px; cursor: pointer; transition: all var(--transition); }
+.drill-row:hover { border-color: var(--brand-soft); background: var(--brand-bg); }
+.drill-row .dr-main { flex: 1; min-width: 0; }
+.drill-row .dr-t { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drill-row .dr-s { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.drill-row .dr-v { font-size: 13px; font-weight: 700; color: var(--brand); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* 附加战功 */
-.merit-box { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--ink-2); margin: 12px 0; padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 10px; }
-.merit-box b { font-family: var(--mono); color: var(--gold); font-size: 14px; }
-.merit-tag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-.merit-tag.on { background: var(--gold-dim); color: var(--gold); }
-.merit-tag.off { background: var(--panel-2); color: var(--ink-3); }
-
-/* 情理色诚四维打分理由 */
-.dim-detail { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
-.dim-item { background: #fff; border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px 12px; }
-.dim-head { display: flex; align-items: center; gap: 8px; }
-.dim-name { font-size: 12px; font-weight: 600; color: var(--ink); }
-.dim-head b { font-family: var(--mono); font-size: 18px; font-weight: 800; color: var(--electric); margin-left: auto; }
-.dim-head i { font-style: normal; font-size: 11px; color: var(--ink-3); }
-.dim-reason { margin-top: 6px; font-size: 12px; color: var(--ink-2); line-height: 1.6; border-top: 1px dashed var(--line-soft); padding-top: 6px; }
-
+/* ── 作品详情（弹窗内脚本渲染）── */
+.detail-head { padding: 14px 16px; margin-bottom: 14px; background: var(--surface-alt); border: 1px solid var(--border-light); border-radius: var(--radius); }
+.detail-head .code { font-family: var(--mono); font-size: 13px; color: var(--brand); }
 .detail-media { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
-.detail-media img, .detail-media video { max-width: 100%; max-height: 240px; border-radius: 10px; border: 1px solid var(--line-soft); background: var(--panel-2); display: block; }
+.detail-media img, .detail-media video { max-width: 100%; max-height: 240px; display: block; border-radius: var(--radius); border: 1px solid var(--border-light); background: var(--surface-alt); }
 .detail-media video { width: 100%; max-width: 480px; }
 
-/* ── 按钮 ── */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 38px; padding: 0 16px; font-size: 13px; font-weight: 500; font-family: inherit;
-  border-radius: 10px; cursor: pointer; white-space: nowrap; user-select: none;
-  border: 1px solid var(--line); background: #fff; color: var(--ink-2);
-  transition: all .2s;
-}
-.btn:hover { border-color: var(--electric); color: var(--electric); }
-.btn:active { transform: scale(.98); }
-.btn.primary {
-  background: var(--grad); color: #fff;
-  border: none; font-weight: 600; box-shadow: 0 1px 2px rgba(185,28,28,.25);
-}
-.btn.primary:hover { filter: brightness(1.05); color: #fff; }
-.btn.ghost { background: transparent; }
-.btn.danger { color: var(--danger); border-color: rgba(220,38,38,.35); }
-.btn.danger:hover { background: var(--danger-bg); color: var(--danger); }
-.btn.sm { height: 32px; padding: 0 12px; font-size: 12px; border-radius: 8px; }
-.btn.full { width: 100%; }
-.btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+.score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+.score-item { padding: 16px 12px; text-align: center; background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius); box-shadow: var(--shadow-xs); }
+.score-item .v { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--brand); font-variant-numeric: tabular-nums; }
+.score-item .l { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
 
-/* ── 表单 ── */
-.form-row { margin-bottom: 15px; }
-.form-row label { display: block; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-bottom: 6px; letter-spacing: .3px; }
-.form-row input, .form-row select, .form-row textarea {
-  width: 100%; height: 40px; padding: 0 13px; font-size: 14px; font-family: inherit; color: var(--ink);
-  background: #fff; border: 1px solid var(--line); border-radius: 10px; outline: none;
-  transition: border-color .2s, box-shadow .2s;
+.ss-box { padding: 12px 14px; margin: 12px 0; background: var(--surface-alt); border: 1px solid var(--border-light); border-radius: var(--radius); }
+.ss-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.ss-title::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px var(--brand-bg); }
+.ss-line { font-size: 12px; color: var(--text-secondary); line-height: 1.9; }
+.ss-line b { color: var(--text); }
+.ss-line .hl { color: var(--brand); font-weight: 700; }
+
+.sub-score { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+.sub-score .si { padding: 10px 8px; text-align: center; background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius-sm); }
+.sub-score .si .l { font-size: 11px; color: var(--text-muted); }
+.sub-score .si .v { font-size: 18px; font-weight: 700; color: var(--c-blue); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.sub-score .si .v b { font-size: 11px; font-weight: 500; color: var(--text-muted); }
+
+.merit-box {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: 12px 0; padding: 10px 12px; font-size: 12px; color: var(--text-secondary);
+  background: var(--surface-alt); border: 1px solid var(--border-light); border-radius: var(--radius-sm);
 }
-.form-row textarea { height: auto; padding: 10px 13px; resize: vertical; min-height: 60px; }
-.form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--electric); box-shadow: 0 0 0 3px var(--electric-dim); }
-.form-row input::placeholder { color: var(--ink-3); }
-.form-row select { appearance: none; padding-right: 32px; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M6 8L1 3h10z' fill='%238A94A6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 12px center; }
-.check-line { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.merit-box b { font-size: 14px; color: var(--brand); font-variant-numeric: tabular-nums; }
+.merit-tag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 9px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+.merit-tag.on { background: var(--brand-bg); color: var(--brand); }
+.merit-tag.off { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border-light); }
+
+.dim-detail { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.dim-item { padding: 10px 12px; background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius-sm); }
+.dim-head { display: flex; align-items: center; gap: 8px; }
+.dim-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.dim-head b { margin-left: auto; font-size: 18px; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; }
+.dim-head i { font-style: normal; font-size: 11px; color: var(--text-muted); }
+.dim-reason { margin-top: 6px; padding-top: 6px; font-size: 12px; line-height: 1.6; color: var(--text-secondary); border-top: 1px dashed var(--border-light); }
+
+/* ── 赛道管理（弹窗内脚本渲染）── */
+.track-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; margin-bottom: 8px; font-size: 13px;
+  background: var(--surface-alt); border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+}
+
+/* ── 表单 / 徽标 / 表格 补充 ── */
+.check-line { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
 .check-line input { width: auto; height: auto; }
-input[type="file"] { color: var(--ink-3); font-size: 12px; }
-input[type="file"]::file-selector-button {
-  height: 32px; padding: 0 12px; margin-right: 10px;
-  border: 1px solid var(--line); border-radius: 8px;
-  background: #fff; color: var(--ink-2);
-  font-family: inherit; font-size: 12px; cursor: pointer; transition: all .2s;
-}
-input[type="file"]::file-selector-button:hover { border-color: var(--electric); color: var(--electric); }
-.thumb-list { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; }
-.thumb-item { position: relative; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--panel-2); }
-.thumb-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.thumb-item .rm { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; border: none; cursor: pointer; font-size: 12px; line-height: 18px; text-align: center; padding: 0; }
+input[type="file"] { height: auto; padding: 8px 10px; font-size: 12px; color: var(--text-muted); }
 
-/* ── 弹窗 ── */
-.modal {
-  position: fixed; inset: 0; z-index: 999;
-  background: rgba(26,34,51,.42); backdrop-filter: blur(6px);
-  display: flex; align-items: center; justify-content: center; padding: 16px;
-  animation: fadeIn .22s ease;
-}
-.modal.hidden { display: none; }
-.modal-box {
-  background: #fff; border: 1px solid var(--line); border-radius: 18px;
-  width: 720px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;
-  box-shadow: 0 24px 70px -24px rgba(31,45,80,.4); animation: slideUp .28s var(--ease);
-}
-@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
-.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line-soft); }
-.modal-head h2 { font-size: 16px; font-weight: 700; margin: 0; }
-.modal-body { padding: 18px 20px; overflow-y: auto; }
-.close { border: none; background: none; font-size: 24px; cursor: pointer; color: var(--ink-3); padding: 0 4px; line-height: 1; }
-.close:hover { color: var(--danger); }
-.detail-head { padding: 14px 16px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--bg-2); margin-bottom: 14px; }
-.detail-head .code { font-family: var(--mono); font-size: 13px; color: var(--electric); }
+.badge.green  { color: var(--green-text); background: var(--green-bg); }
+.badge.blue   { color: var(--c-blue); background: var(--c-blue-bg); }
+.badge.yellow { color: var(--amber-text); background: var(--amber-bg); }
+.badge.muted  { color: var(--text-secondary); background: var(--surface-alt); }
+.badge.red    { color: #b91c1c; background: #fee2e2; }
 
-/* ── 赛道管理 ── */
-.track-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 10px; margin-bottom: 8px; background: var(--bg-2); font-size: 13px; }
-.track-item:hover { border-color: var(--line); }
+.data-table td.num { font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* ── 响应式 ── */
-@media (max-width: 980px) {
-  .command-strip { grid-template-columns: 1fr; }
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+/* ── 响应式补充（以 1440 为目标，向下逐级降档）── */
+@media (max-width: 1100px) {
+  /* 三榜降为两列时让第三张通栏，避免半格孤行 */
+  .board-grid { grid-template-columns: 1fr 1fr; }
+  .board-grid > .card:nth-child(3) { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) {
+  .console #statGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* 两列时重排分隔线：仅偶数列保留左侧竖线，第二行加顶部横线 */
+  .console #statGrid .kpi + .kpi { border-left: 0; }
+  .console #statGrid .kpi:nth-child(2n) { border-left: 1px solid var(--border-light); }
+  .console #statGrid .kpi:nth-child(n+3) { border-top: 1px solid var(--border-light); }
+}
+@media (max-width: 760px) {
+  .board-grid { grid-template-columns: 1fr; }
+  .board-grid > .card:nth-child(3) { grid-column: auto; }
   .score-grid { grid-template-columns: 1fr 1fr; }
+  .sub-score { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 560px) {
-  .wrap { padding: 14px 12px 40px; }
-  .kpi-grid { grid-template-columns: 1fr 1fr; }
-  .kpi .num { font-size: 26px; }
-  .toolbar select, .toolbar input { flex: 1 1 auto; min-width: 80px; }
-  .score-grid { grid-template-columns: 1fr 1fr; }
-  .data-table th, .data-table td { padding: 9px 9px; }
+  .wrap { padding: 14px 12px 36px; }
+  .console { padding: 4px 6px 6px; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
+/* ── 凭证图片：点缩略图看大图（不下载） ──
+   缩略图原先套的是 <a href="${url}" target="_blank">，而 COS 预签名链接是
+   get_presigned_download_url 生成的、带 Content-Disposition: attachment，
+   点一下不会显示图片而是直接下载文件。改成页面内浮层预览：
+   点图看大图，点背景 / × / Esc 关闭。（<img> 会忽略 Content-Disposition，
+   所以同一张图放进浮层就能正常显示。） */
+.thumb-zoom {
+  display: block; width: 40px; height: 40px; object-fit: cover;
+  border-radius: 6px; cursor: zoom-in;
+  transition: transform var(--transition), box-shadow var(--transition);
 }
+.thumb-zoom:hover { transform: scale(1.14); box-shadow: var(--shadow-lg); }
+.thumb-zoom.sm { width: 32px; height: 32px; border-radius: 4px; }
+
+.img-viewer { background: rgba(9, 12, 20, .86); backdrop-filter: blur(3px); z-index: 1200; }
+.img-viewer-body { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 96vw; max-height: 92vh; }
+.img-viewer-body img {
+  max-width: 96vw; max-height: 82vh; width: auto; height: auto; object-fit: contain;
+  background: #fff; border-radius: 8px; cursor: zoom-out;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+}
+.img-viewer-bar { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; color: #e5e7eb; font-size: 13px; }
+.img-viewer-close {
+  position: fixed; top: 14px; right: 18px; width: 40px; height: 40px; border: none; border-radius: 50%;
+  background: rgba(255, 255, 255, .16); color: #fff; font-size: 24px; line-height: 1; cursor: pointer;
+  transition: background var(--transition);
+}
+.img-viewer-close:hover { background: rgba(255, 255, 255, .3); }
 </style>
 </head>
 <body>
 
-<svg width="0" height="0" style="position:absolute">
-  <defs>
-    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#c53030"/>
-      <stop offset="100%" stop-color="#991b1b"/>
-    </linearGradient>
-  </defs>
-</svg>
-
 <div class="wrap">
-  <!-- 顶栏 -->
-  <div class="topbar">
-    <div class="brand">
-      <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor"/></svg>
-      </div>
-      <div>
-        <h1>双百战役 · 指挥驾驶舱</h1>
-        <div class="sub">内容表现 <b>40%</b> · 用户留存 <b>30%</b> · 互动传播 <b>30%</b></div>
-      </div>
-    </div>
-    <div class="top-right">
-      <span class="live"><span class="dot"></span>战役进行中</span>
-      <span>指挥官 <b id="curUser">加载中…</b></span>
-      <span class="sep">|</span>
-      <a href="/manager">返回后台</a>
-      <span class="sep">|</span>
-      <a href="javascript:void(0)" onclick="doLogout()">退出</a>
-    </div>
-  </div>
 
-  <!-- 指挥舱：聚能环 + KPI -->
-  <div class="command-strip">
-    <div class="ring-panel">
-      <div class="ring-box">
-        <svg viewBox="0 0 120 120">
-          <circle class="ring-bg" cx="60" cy="60" r="52"/>
-          <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52"/>
-        </svg>
-        <div class="ring-center">
-          <div class="num" id="ringNum">0</div>
-          <div class="lbl">已计分作品</div>
+  <!-- 指挥台（深色 Hero）· 单行指挥条：标题 / 仪表 / 操作 -->
+  <section class="deck">
+    <div class="deck-bar">
+      <div class="deck-id">
+        <div class="kicker"><i></i>双百战役 · 实时指挥</div>
+        <h1>指挥驾驶舱</h1>
+        <div class="deck-sub">好内容 = 内容表现 <b>40%</b> · 用户留存 <b>30%</b> · 互动传播 <b>30%</b></div>
+      </div>
+      <div class="deck-meters">
+        <div class="deck-meter">
+          <div class="m-lbl">已计分作品</div>
+          <div class="m-val" id="ringNum">0</div>
+          <div class="m-sub">达标且完成 T+7</div>
+        </div>
+        <div class="deck-meter">
+          <div class="m-lbl">总作品</div>
+          <div class="m-val" id="ringTotal">0</div>
+          <div class="m-sub">含待回填、待初审</div>
+        </div>
+        <div class="deck-meter">
+          <div class="m-lbl">推进率</div>
+          <div class="m-val accent" id="ringPct">0%</div>
+          <div class="m-sub">已计分 <b id="ringQual">0</b></div>
         </div>
       </div>
-      <div class="ring-meta">
-        <div class="eyebrow">战役推进 · 聚能环</div>
-        <h2>战功蓄能</h2>
-        <div class="line"><span>已计分</span><b id="ringQual">0</b></div>
-        <div class="line"><span>总作品</span><b id="ringTotal">0</b></div>
-        <div class="line"><span>推进率</span><b id="ringPct">0%</b></div>
+      <div class="deck-actions">
+        <span class="deck-badge"><i></i>战役进行中</span>
+        <span class="who">指挥官 <b id="curUser">加载中…</b></span>
+        <a class="btn sm" href="/manager">返回后台</a>
+        <button class="btn sm" onclick="doLogout()">退出</button>
       </div>
     </div>
-    <div class="kpi-grid" id="statGrid"></div>
-  </div>
+  </section>
 
-  <!-- 操作工具栏 -->
-  <div class="toolbar">
-    <button class="btn primary" onclick="showCreate()">＋ 首次上传建档</button>
-    <input id="codeInput" placeholder="粘贴一稿一码回传 T+7" style="width:210px;height:36px;padding:0 12px;font-size:13px;background:var(--bg-2);border:1px solid var(--line);border-radius:9px;color:var(--ink)">
-    <button class="btn" onclick="submitByCode()">凭码回传 T+7</button>
-    <button class="btn" onclick="exportCSV()">导出报表</button>
-    <button class="btn" onclick="showTracks()">管理赛道</button>
-    <button class="btn" onclick="refreshAll()" title="立即刷新数据">刷新</button>
-    <span class="spacer"></span>
-    <select id="fRegion" onchange="applyFilters()"><option value="">全部大区</option></select>
-    <select id="fTrack" onchange="applyFilters()"><option value="">全部赛道</option></select>
-    <select id="fGrade" onchange="applyFilters()"><option value="">全部等级</option><option value="S">S</option><option value="A">A</option><option value="B">B</option><option value="待优化">待优化</option></select>
-    <input id="fCreator" placeholder="搜索创作者…" oninput="applyFilters()">
-    <button class="btn sm" onclick="clearFilters()">清除筛选</button>
-  </div>
+  <!-- 控制台：核心指标 + 操作/筛选，合并为一块卡片 -->
+  <section class="console">
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="console-sep"></div>
+    <div class="toolbar filter-bar">
+      <button class="btn primary" onclick="showCreate()">＋ 上传建档</button>
+      <button class="btn" onclick="showAddFromSub()">＋ 从提交补建档</button>
+      <input id="codeInput" placeholder="粘贴一稿一码">
+      <button class="btn" onclick="submitByCode()">凭码回传 T+7</button>
+      <button class="btn" onclick="exportCSV()">导出报表</button>
+      <button class="btn" onclick="showTracks()">管理赛道</button>
+      <button class="btn" onclick="showScoreCfg()">评分标准</button>
+      <button class="btn" id="thresholdCfgBtn" onclick="showThresholdCfg()" style="display:none">参评门槛</button>
+      <button class="btn" onclick="refreshAll()" title="立即刷新数据">刷新</button>
+      <span class="spacer"></span>
+      <select id="fRegion" onchange="applyFilters()"><option value="">全部大区</option></select>
+      <select id="fTrack" onchange="applyFilters()"><option value="">全部赛道</option></select>
+      <select id="fGrade" onchange="applyFilters()"><option value="">全部等级</option><option value="S">S</option><option value="A">A</option><option value="B">B</option><option value="待优化">待优化</option></select>
+      <input id="fCreator" placeholder="搜索创作者…" oninput="applyFilters()">
+      <button class="btn sm" onclick="clearFilters()">清除筛选</button>
+    </div>
+  </section>
 
   <!-- Tab -->
-  <div class="tabs" id="tabs">
+  <div class="seg tabs" id="tabs">
     <button class="active" data-tab="boards" onclick="switchTab('boards')">四大榜单</button>
     <button data-tab="works" onclick="switchTab('works')">内容库</button>
     <button data-tab="creators" onclick="switchTab('creators')">创作者库</button>
-    <button data-tab="propagation" onclick="switchTab('propagation')">传播记录库</button>
+    <button data-tab="propagation" onclick="switchTab('propagation')">视频数据库</button>
     <button data-tab="credentials" onclick="switchTab('credentials')">有效线索库</button>
   </div>
 
   <!-- 四大榜单 -->
   <div id="tab-boards" class="tabpane">
-    <div class="grid-2">
+    <div class="board-grid">
       <div class="card">
-        <div class="card-head"><span class="ic-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span><h2>内容榜<span class="hint">按总分排序</span></h2></div>
+        <h2>内容榜 <span class="hint">按总分排序</span></h2>
         <div id="boardContent"></div>
       </div>
       <div class="card">
-        <div class="card-head"><span class="ic-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><h2>创作者榜<span class="hint">Top3 战功 + 连续 4 周 +5</span></h2></div>
+        <h2>创作者榜 <span class="hint">Top3 战功 + 连续 4 周 +5</span></h2>
         <div id="boardCreator"></div>
       </div>
       <div class="card">
-        <div class="card-head"><span class="ic-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span><h2>赛道榜<span class="hint">分赛道 · 区域 Top5</span></h2></div>
+        <h2>赛道榜 <span class="hint">分赛道 · 区域 Top5</span></h2>
         <div id="boardTrack"></div>
       </div>
-      <div class="card">
-        <div class="card-head"><span class="ic-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span><h2>战区总榜<span class="hint">月度 100 分</span></h2></div>
-        <div id="boardWarzone"></div>
-      </div>
+    </div>
+    <div class="card">
+      <h2>战区总榜 <span class="hint">月度 100 分</span></h2>
+      <div id="boardWarzone"></div>
     </div>
   </div>
 
@@ -578,7 +472,7 @@ input[type="file"]::file-selector-button:hover { border-color: var(--electric); 
   <div id="tab-works" class="tabpane" style="display:none">
     <div class="card">
       <div class="table-scroll">
-        <table class="data-table"><thead><tr><th>一稿一码</th><th>赛道</th><th>标题</th><th>创作者</th><th>区域</th><th>内容表现</th><th>总分</th><th>等级</th><th>战功</th><th>状态</th><th>操作</th></tr></thead>
+        <table class="data-table" id="worksTable"><thead><tr><th class="sortable" data-sort="code" onclick="onSort('worksTable','code')">一稿一码<i class="sort-ind">↕</i></th><th class="sortable hide-sm" data-sort="track" onclick="onSort('worksTable','track')">赛道<i class="sort-ind">↕</i></th><th class="sortable" data-sort="title" onclick="onSort('worksTable','title')">标题<i class="sort-ind">↕</i></th><th class="sortable hide-md" data-sort="creator_name" onclick="onSort('worksTable','creator_name')">创作者<i class="sort-ind">↕</i></th><th class="sortable hide-md" data-sort="region" onclick="onSort('worksTable','region')">区域<i class="sort-ind">↕</i></th><th class="sortable" data-sort="url" onclick="onSort('worksTable','url')">作品链接<i class="sort-ind">↕</i></th><th class="sortable hide-sm" data-sort="ai_content_score" onclick="onSort('worksTable','ai_content_score')">内容表现<i class="sort-ind">↕</i></th><th class="sortable" data-sort="total_score" onclick="onSort('worksTable','total_score')">总分<i class="sort-ind">↕</i></th><th class="sortable hide-md" data-sort="grade" onclick="onSort('worksTable','grade')">等级<i class="sort-ind">↕</i></th><th class="sortable hide-md" data-sort="total_merit" onclick="onSort('worksTable','total_merit')">战功<i class="sort-ind">↕</i></th><th class="sortable" data-sort="status" onclick="onSort('worksTable','status')">状态<i class="sort-ind">↕</i></th><th>操作</th></tr></thead>
         <tbody id="worksTbody"></tbody></table>
       </div>
     </div>
@@ -588,17 +482,17 @@ input[type="file"]::file-selector-button:hover { border-color: var(--electric); 
   <div id="tab-creators" class="tabpane" style="display:none">
     <div class="card">
       <div class="table-scroll">
-        <table class="data-table"><thead><tr><th>创作者</th><th>区域</th><th>Top3 战功之和</th><th>连续 4 周加分</th><th>总战功</th><th>作品数</th></tr></thead>
+        <table class="data-table" id="creatorsTable"><thead><tr><th class="sortable" data-sort="name" onclick="onSort('creatorsTable','name')">创作者<i class="sort-ind">↕</i></th><th class="sortable hide-md" data-sort="region" onclick="onSort('creatorsTable','region')">区域<i class="sort-ind">↕</i></th><th class="sortable" data-sort="top3_merit" onclick="onSort('creatorsTable','top3_merit')">Top3 战功之和<i class="sort-ind">↕</i></th><th class="sortable hide-md" data-sort="continuous_weeks_bonus" onclick="onSort('creatorsTable','continuous_weeks_bonus')">连续 4 周加分<i class="sort-ind">↕</i></th><th class="sortable" data-sort="total" onclick="onSort('creatorsTable','total')">总战功<i class="sort-ind">↕</i></th><th class="sortable hide-sm" data-sort="work_count" onclick="onSort('creatorsTable','work_count')">作品数<i class="sort-ind">↕</i></th></tr></thead>
         <tbody id="creatorsTbody"></tbody></table>
       </div>
     </div>
   </div>
 
-  <!-- 传播记录库 -->
+  <!-- 视频数据库 -->
   <div id="tab-propagation" class="tabpane" style="display:none">
     <div class="card">
       <div class="table-scroll">
-        <table class="data-table"><thead><tr><th>作品码</th><th>标题</th><th>播放</th><th>3秒留存%</th><th>完播%</th><th>深度互动%</th><th>点赞%</th><th>提交时间</th></tr></thead>
+        <table class="data-table" id="propTable"><thead><tr><th class="sortable" data-sort="code" onclick="onSort('propTable','code')">作品码<i class="sort-ind">↕</i></th><th class="sortable" data-sort="title" onclick="onSort('propTable','title')">标题<i class="sort-ind">↕</i></th><th class="sortable" data-sort="url" onclick="onSort('propTable','url')" title="投稿人 T+7 回传时填写的作品链接">作品链接<i class="sort-ind">↕</i></th><th class="sortable" data-sort="plays" onclick="onSort('propTable','plays')">播放<i class="sort-ind">↕</i></th><th class="sortable" data-sort="retention_3s" onclick="onSort('propTable','retention_3s')">3秒留存%<i class="sort-ind">↕</i></th><th class="sortable" data-sort="completion_rate" onclick="onSort('propTable','completion_rate')">完播%<i class="sort-ind">↕</i></th><th class="sortable hide-md" data-sort="comment_count" onclick="onSort('propTable','comment_count')" title="评论个数（条）">评论<i class="sort-ind">↕</i></th><th class="sortable hide-sm" data-sort="like_count" onclick="onSort('propTable','like_count')" title="爱心个数（个）">爱心<i class="sort-ind">↕</i></th><th class="sortable hide-sm" data-sort="share_count" onclick="onSort('propTable','share_count')">转发<i class="sort-ind">↕</i></th><th class="sortable" data-sort="submit_count" onclick="onSort('propTable','submit_count')" title="该作品一共回传过几次；表格展示的是最新一次的数据，点进详情可看历次">回传次数<i class="sort-ind">↕</i></th><th class="sortable hide-md" data-sort="submitted_at" onclick="onSort('propTable','submitted_at')">提交时间<i class="sort-ind">↕</i></th><th title="该作品最新一次回传提交的后台数据截图（这六项数字的来源）；点缩略图看大图">数据截图</th></tr></thead>
         <tbody id="propTbody"></tbody></table>
       </div>
     </div>
@@ -608,7 +502,7 @@ input[type="file"]::file-selector-button:hover { border-color: var(--electric); 
   <div id="tab-credentials" class="tabpane" style="display:none">
     <div class="card">
       <div class="table-scroll">
-        <table class="data-table"><thead><tr><th>作品码</th><th>标题</th><th>类型</th><th>文件</th><th>备注</th><th>时间</th></tr></thead>
+        <table class="data-table" id="credTable"><thead><tr><th class="sortable hide-md" data-sort="code" onclick="onSort('credTable','code')">作品码<i class="sort-ind">↕</i></th><th class="sortable" data-sort="title" onclick="onSort('credTable','title')">标题<i class="sort-ind">↕</i></th><th class="sortable" data-sort="seq" onclick="onSort('credTable','seq')" title="这份有效线索是第几次回传时提交的">第几次<i class="sort-ind">↕</i></th><th>有效线索图片</th><th class="sortable" data-sort="review_status" onclick="onSort('credTable','review_status')" title="人工审核：这条有效线索是否合格">审核<i class="sort-ind">↕</i></th><th title="该作品当前战功；人工追加部分不含在系统战功里">战功</th><th class="sortable" data-sort="created_at" onclick="onSort('credTable','created_at')">时间<i class="sort-ind">↕</i></th></tr></thead>
         <tbody id="credTbody"></tbody></table>
       </div>
     </div>
@@ -623,6 +517,14 @@ input[type="file"]::file-selector-button:hover { border-color: var(--electric); 
   </div>
 </div>
 
+<!-- 榜单下钻弹窗 -->
+<div id="drillModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="drillTitle">下钻明细</h2><button class="close" onclick="closeModal('drillModal')">×</button></div>
+    <div class="modal-body" id="drillBody"></div>
+  </div>
+</div>
+
 <!-- 首次上传弹窗 -->
 <div id="createModal" class="modal hidden">
   <div class="modal-box" style="max-width:480px">
@@ -632,7 +534,12 @@ input[type="file"]::file-selector-button:hover { border-color: var(--electric); 
       <div class="form-row"><label>标题</label><input id="cTitle" placeholder="作品标题"></div>
       <div class="form-row"><label>作品链接</label><input id="cUrl" placeholder="视频号链接"></div>
       <div class="form-row"><label>创作者</label><input id="cCreator" placeholder="创作者姓名"></div>
-      <div class="form-row"><label>区域</label><input id="cRegion" placeholder="如 华东区/上海市"></div>
+      <div class="form-row"><label>区域</label>
+        <div style="display:flex;gap:8px">
+          <select id="cBigRegion" style="flex:1" onchange="onCreateBigChange()"><option value="">选择大区</option></select>
+          <select id="cSubRegion" style="flex:1"><option value="">选择区域</option></select>
+        </div>
+      </div>
       <div class="form-row"><label>附加战功</label>
         <div style="display:flex;gap:16px;flex-wrap:wrap">
           <span class="check-line"><input type="checkbox" id="cMatrix"> 矩阵放大 +2</span>
@@ -645,26 +552,63 @@ input[type="file"]::file-selector-button:hover { border-color: var(--electric); 
   </div>
 </div>
 
+<!-- 调整赛道弹窗 -->
+<div id="trackEditModal" class="modal hidden">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head"><h2>调整赛道</h2><button class="close" onclick="closeModal('trackEditModal')">×</button></div>
+    <div class="modal-body">
+      <p id="teWorkInfo" style="font-size:13px;color:var(--text-muted);margin-bottom:10px"></p>
+      <div class="form-row"><label>赛道 *</label><select id="teTrack" style="width:100%"></select></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">调整后赛道榜与区域战绩按新赛道统计；评分不受影响，无需重算。</p>
+      <button class="btn primary full" onclick="saveWorkTrack()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 从提交补建档弹窗 -->
+<div id="addFromSubModal" class="modal hidden">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-head"><h2>从未参战的提交补建档</h2><button class="close" onclick="closeModal('addFromSubModal')">×</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">
+        下列内容已上传审核但未参与双百战役（新建档默认只勾选「审核通过」的）。选好赛道后批量建档；
+        赛道留「由 AI 逐条识别」则逐条交给 AI 判断，识别完自动建档（较慢，可关掉弹窗等作品陆续出现）。
+      </p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <label style="font-size:12px"><input type="checkbox" id="asAll" onchange="toggleAllAsSub(this.checked)"> 全选</label>
+        <span id="asCount" style="font-size:12px;color:var(--text-muted)"></span>
+      </div>
+      <div id="asSubList" style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:10px"></div>
+      <div class="form-row"><label>赛道</label><select id="asTrack" style="width:100%"></select></div>
+      <div id="asMsg" style="font-size:12px;margin-bottom:8px;min-height:16px"></div>
+      <button class="btn primary full" onclick="doAddFromSub()">批量建档</button>
+    </div>
+  </div>
+</div>
+
 <!-- T+7 提交弹窗 -->
 <div id="submitModal" class="modal hidden">
   <div class="modal-box" style="max-width:520px">
     <div class="modal-head"><h2>T+7 二次提交 · 自动打分</h2><button class="close" onclick="closeModal('submitModal')">×</button></div>
     <div class="modal-body">
       <div class="form-row"><label>自然播放量 *</label><input id="sPlays" type="number" placeholder="≥500 才计分"></div>
+      <div class="form-row"><label>作品链接</label><input id="sUrl" placeholder="视频号 / 平台作品链接（会回写到作品上）"></div>
       <div style="display:flex;gap:10px">
         <div class="form-row" style="flex:1"><label>3秒留存率 %</label><input id="sR3" type="number" step="0.1"></div>
         <div class="form-row" style="flex:1"><label>完播率 %</label><input id="sComp" type="number" step="0.1"></div>
       </div>
       <div style="display:flex;gap:10px">
-        <div class="form-row" style="flex:1"><label>深度互动率 %</label><input id="sDeep" type="number" step="0.1"></div>
-        <div class="form-row" style="flex:1"><label>点赞率 %</label><input id="sLike" type="number" step="0.1"></div>
+        <div class="form-row" style="flex:1"><label>评论个数</label><input id="sDeep" type="number"></div>
+        <div class="form-row" style="flex:1"><label>爱心个数</label><input id="sLike" type="number"></div>
       </div>
+      <div class="form-row"><label>转发次数</label><input id="sShare" type="number" placeholder="后台的转发数"></div>
       <div class="form-row"><span class="check-line"><input type="checkbox" id="sOriginal" checked> 原创 / 有效二创</span></div>
-      <div class="form-row"><label>后台数据截图（直接上传图片）</label><input type="file" id="sScreenshotFile" accept="image/*" multiple onchange="onCredFiles(this,'screenshot')"></div>
+      <div class="form-row"><label>后台数据截图（直接上传图片）*</label><input type="file" id="sScreenshotFile" accept="image/*" multiple onchange="onCredFiles(this,'screenshot')"></div>
       <div id="sScreenshotList" class="thumb-list"></div>
-      <div class="form-row"><label>有效线索回传（直接上传图片）</label><input type="file" id="sProofFile" accept="image/*" multiple onchange="onCredFiles(this,'business')"></div>
+      <div class="form-row"><label>有效线索回传（选填 · 可据此追加战功）</label><input type="file" id="sProofFile" accept="image/*" multiple onchange="onCredFiles(this,'business')"></div>
       <div id="sProofList" class="thumb-list"></div>
-      <button class="btn primary full" onclick="doSubmit()">提交并自动打分</button>
+      <div id="submitQuota" class="hint mt"></div>
+      <button id="submitT7Btn" class="btn primary full" onclick="doSubmit()">提交并自动打分</button>
       <div id="submitMsg" class="mt hint"></div>
     </div>
   </div>
@@ -684,13 +628,80 @@ input[type="file"]::file-selector-button:hover { border-color: var(--electric); 
   </div>
 </div>
 
+<!-- 评分标准设置弹窗 -->
+<div id="scoreCfgModal" class="modal hidden">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-head"><h2>评分标准设置</h2><button class="close" onclick="closeModal('scoreCfgModal')">×</button></div>
+    <div class="modal-body">
+      <p class="hint" style="margin-top:0">
+        每行是「达标线 → 得分」：实际值 ≥ 达标线即得该分，按达标线从高到低匹配，最后一行请把达标线设为 0（兜底）。<br>
+        互动三项（评论个数 / 爱心个数 / 转发次数）填的都是<b>个数</b>，直接套档位；转发率只作展示、不参与打分。<br>
+        改动<b>只影响此后新回传</b>的打分，已计分作品不会自动回算。
+      </p>
+      <div id="scoreCfgBody"></div>
+      <button class="btn primary full" onclick="saveScoreCfg()">保存评分标准</button>
+      <div id="scoreCfgMsg" class="mt hint"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 参评门槛设置弹窗 -->
+<div id="thresholdCfgModal" class="modal hidden">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-head"><h2>双百参评门槛</h2><button class="close" onclick="closeModal('thresholdCfgModal')">×</button></div>
+    <div class="modal-body">
+      <p class="hint" style="margin-top:0">当前值保持为 0：不限制自然播放量，不限制发布天数。只有管理员可以修改。</p>
+      <div class="form-row"><label>自然播放量门槛</label><input id="thresholdPlays" type="number" min="0" step="1"></div>
+      <div class="form-row"><label>发布满几天</label><input id="thresholdDays" type="number" min="0" step="1"></div>
+      <button class="btn primary full" onclick="saveThresholdCfg()">保存参评门槛</button>
+      <div id="thresholdCfgMsg" class="mt hint"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 人工审核追加战功弹窗 -->
+<div id="meritModal" class="modal hidden">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h2>人工追加战功</h2><button class="close" onclick="closeModal('meritModal')">×</button></div>
+    <div class="modal-body">
+      <div id="meritWorkInfo" class="hint" style="margin-bottom:12px;line-height:1.7"></div>
+      <div class="form-row"><label>追加分值 *</label><input id="meritDelta" type="number" step="1" placeholder="正数追加 / 负数扣减，如 2 或 -1"></div>
+      <div class="form-row"><label>理由 *</label><input id="meritReason" placeholder="如：有效线索质量高，额外奖励"></div>
+      <button class="btn primary full" onclick="doAdjustMerit()">确认追加</button>
+      <div id="meritMsg" class="mt hint"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 凭证图片放大预览（点缩略图打开，看大图而不是下载） -->
+<div id="imgViewerModal" class="modal hidden img-viewer" onclick="closeImageViewer()">
+  <button class="img-viewer-close" onclick="closeImageViewer()" title="关闭（Esc）">×</button>
+  <div class="img-viewer-body" onclick="event.stopPropagation()">
+    <img id="imgViewerImg" src="" alt="凭证图片" onclick="closeImageViewer()">
+    <div class="img-viewer-bar"><span id="imgViewerMeta"></span></div>
+  </div>
+</div>
+
 <script>
 // ── 状态 ──
 let curUser = null, curWorkId = null, cacheWorks = [];
-let uploadedScreenshots = [], uploadedProofs = [];
+let cacheCreators = [], cacheProp = [], cacheCred = [];
+// 榜单数据缓存（下钻用，onclick 走下标避免字符串转义问题）
+const boardData = { content: [], creator: [], track: [], warzone: [] };
+// 各表排序状态：tableId -> { key, dir }
+const sortState = {};
+let uploadedScreenshots = [], uploadedProofs = [], credUploading = 0;
+let submittingT7 = false, submitCount = null, correctionWork = null, correctionShots = [], correctionUploading = 0, correctionSaving = false;
+// 追加战功弹窗用的作品信息缓存：work_id -> {title, merit, manual}
+let meritInfo = {};
+let meritWorkId = null;
+// 评分标准缓存（后台可改，详情页的满分/标准说明都按它渲染，不写死分值）
+let scoreCfg = { metrics: [] };
 
 const BIG_REGIONS = ['华东区','华北区','华南区','东北区','西一区','西二区'];
-const STATUS_TXT = {pending_review:'待初审', pending_t7:'待T+7', qualified:'已计分', eliminated:'淘汰', disqualified:'已清零'};
+// 大区 → 细分区域（/api/regions 拉取，建档弹窗用它做下拉，避免手输成「西二区云南省」）
+let REGION_TREE = {};
+const STATUS_TXT = {pending_review:'待初审', pending_t7:'待T+7', qualified:'已计分', eliminated:'淘汰', disqualified:'已清零', excluded:'已移出'};
 const EMPTY_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px;margin:0 auto 10px;color:var(--ink-3);opacity:.55;display:block"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>`;
 
 async function api(path, opts) {
@@ -702,6 +713,33 @@ async function api(path, opts) {
 }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+
+// ── 凭证图片放大预览 ──
+// 缩略图不直接跳转 COS 链接：那条链接是 get_presigned_download_url 生成的、
+// 带 Content-Disposition: attachment，跳过去会变成下载文件。这里改成页面内浮层看大图。
+// 图片 URL 不拼进 onclick（预签名 URL 带 & 和 = ，拼进去容易被实体转义搞坏），
+// 而是用 this.src 从元素本身读——<img> 的 src 属性返回的是浏览器已解析好的绝对地址。
+function showImage(url, meta) {
+  if (!url) return;
+  const img = document.getElementById('imgViewerImg');
+  if (!img) return;
+  img.src = url;
+  const m = document.getElementById('imgViewerMeta');
+  if (m) m.textContent = meta || '';
+  openModal('imgViewerModal');
+}
+function closeImageViewer() {
+  closeModal('imgViewerModal');
+  // 清掉 src，避免关掉之后大图还占着内存
+  const img = document.getElementById('imgViewerImg');
+  if (img) img.src = '';
+}
+// Esc 关闭大图预览
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const v = document.getElementById('imgViewerModal');
+  if (v && !v.classList.contains('hidden')) closeImageViewer();
+});
 function esc(s) { return (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 async function doLogout() {
   try { await fetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
@@ -710,14 +748,25 @@ async function doLogout() {
 
 // ── 初始化 ──
 async function init() {
-  try { curUser = await api('/api/auth/me'); document.getElementById('curUser').textContent = curUser.display_name || curUser.username; }
-  catch(e) { return; }
-  const t = await api('/api/campaign/tracks');
-  document.getElementById('fTrack').innerHTML = '<option value="">全部赛道</option>' + t.tracks.map(x=>`<option>${x.name}</option>`).join('');
-  document.getElementById('cTrack').innerHTML = t.tracks.map(x=>`<option value="${x.name}">${x.name}</option>`).join('');
+  try {
+    curUser = await api('/api/auth/me');
+    document.getElementById('curUser').textContent = curUser.display_name || curUser.username;
+    if (curUser.role === 'admin') document.getElementById('thresholdCfgBtn').style.display = '';
+  } catch(e) { return; }
+  const t = await api('/api/campaign/tracks') || {};
+  const trackList = Array.isArray(t.tracks) ? t.tracks : [];
+  // 赛道名缓存：改赛道 / 补建档弹窗的下拉直接复用，避免每次再请求
+  window.__tracks = trackList.map(x => x.name);
+  document.getElementById('fTrack').innerHTML = '<option value="">全部赛道</option>' + trackList.map(x=>`<option>${x.name}</option>`).join('');
+  document.getElementById('cTrack').innerHTML = trackList.map(x=>`<option value="${x.name}">${x.name}</option>`).join('');
   document.getElementById('fRegion').innerHTML = '<option value="">全部大区</option>' + BIG_REGIONS.map(x=>`<option>${x}</option>`).join('');
+  // 区域树：建档弹窗两级下拉用（失败也不影响其它功能）
+  try { REGION_TREE = await api('/api/regions') || {}; } catch(e) { REGION_TREE = {}; }
+  document.getElementById('cBigRegion').innerHTML =
+    '<option value="">选择大区</option>' + Object.keys(REGION_TREE).map(x=>`<option>${x}</option>`).join('');
   await refreshAll();
   // 定时自动刷新：上传建档 / T+7 回传 / 异步打分都会改变数据
+  // （refreshAll 内部只刷当前标签页那张表，不做 5 张表全量重拉）
   setInterval(refreshAll, 20000);
   // 从 URL 读取一稿一码（/campaign.html?code=XXX），自动打开回传表单
   const urlCode = new URLSearchParams(location.search).get('code');
@@ -727,8 +776,21 @@ async function init() {
   }
 }
 
+// 当前显示的标签页（轮询时只刷可见的那张表）
+function activeTab() {
+  const b = document.querySelector('#tabs button.active');
+  return b ? b.dataset.tab : 'boards';
+}
+
+// 刷新：顶部 KPI / 聚能环常驻，依赖 loadWorks，所以每次都拉；
+// 下面几张表只拉「当前标签页」那张——5 张表全量重拉会让驾驶舱每 20 秒卡一下。
 async function refreshAll() {
-  await Promise.all([loadWorks(), loadCreators(), loadProp(), loadCred()]);
+  const tab = activeTab();
+  const jobs = [loadWorks()];
+  if (tab === 'creators') jobs.push(loadCreators());
+  if (tab === 'propagation') jobs.push(loadProp());
+  if (tab === 'credentials') jobs.push(loadCred());
+  await Promise.all(jobs);
   await loadBoards();
   renderStats();
 }
@@ -753,9 +815,6 @@ function renderStats() {
   const total = cacheWorks.length;
   const pct = total ? Math.round(qualified.length/total*100) : 0;
 
-  const C = 2 * Math.PI * 52;
-  document.getElementById('ringFg').style.strokeDasharray = C;
-  document.getElementById('ringFg').style.strokeDashoffset = C * (1 - pct/100);
   animateNumber(document.getElementById('ringNum'), qualified.length);
   document.getElementById('ringQual').textContent = qualified.length;
   document.getElementById('ringTotal').textContent = total;
@@ -776,6 +835,10 @@ function switchTab(name) {
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   document.querySelectorAll('.tabpane').forEach(p=>p.style.display='none');
   document.getElementById('tab-'+name).style.display='block';
+  // 轮询只刷当前标签页，首次切过去时补拉一次，免得看到空表
+  if (name === 'creators' && !cacheCreators.length) loadCreators();
+  else if (name === 'propagation' && !cacheProp.length) loadProp();
+  else if (name === 'credentials' && !cacheCred.length) loadCred();
 }
 
 let _filterTimer = null;
@@ -795,13 +858,55 @@ function clearFilters() {
   applyFilters();
 }
 
+// ── 表格一键排序 ──
+// 数值列缺值统一压到最后（-Infinity）
+const NUM = v => (v == null || v === '' || isNaN(Number(v))) ? -Infinity : Number(v);
+
+function onSort(tableId, key) {
+  const st = sortState[tableId];
+  if (st && st.key === key) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
+  else sortState[tableId] = { key, dir: 'desc' };
+  const fn = tableRenderers[tableId];
+  if (fn) fn();
+}
+
+function refreshSortInds(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const st = sortState[tableId];
+  table.querySelectorAll('th.sortable').forEach(th => {
+    const ind = th.querySelector('.sort-ind');
+    if (!ind) return;
+    const on = !!st && st.key === th.dataset.sort;
+    ind.textContent = on ? (st.dir === 'asc' ? '↑' : '↓') : '↕';
+    ind.classList.toggle('on', on);
+  });
+}
+
+// 按当前排序状态排列行；getters 里数值列请用 NUM() 包裹
+function sortedRows(tableId, rows, getters) {
+  const st = sortState[tableId];
+  if (!st || !getters[st.key]) return rows;
+  const g = getters[st.key];
+  const dir = st.dir === 'asc' ? 1 : -1;
+  return rows.slice().sort((a, b) => {
+    const x = g(a), y = g(b);
+    if (typeof x === 'number' || typeof y === 'number') return (x - y) * dir;
+    return String(x == null ? '' : x).localeCompare(String(y == null ? '' : y), 'zh') * dir;
+  });
+}
+
+const tableRenderers = {};
+
 // ── 榜单 ──
 function renderRankChart(items, opts) {
   if (!items.length) return emptyBox(opts.emptyTxt, opts.emptySub || '');
+  const kind = opts.clickKind || '';
   return '<div class="rank-chart">' + items.map((it, i) => {
     const r = i + 1;
     const cls = r === 1 ? 'top1' : r === 2 ? 'top2' : r === 3 ? 'top3' : '';
-    return `<div class="rank-chart-item ${cls}"><div class="rc-rank">${r}</div><div class="rc-body"><div class="rc-line"><span class="rc-title">${it.title}</span><span class="rc-val">${it.val}</span></div>${it.desc ? `<div class="rc-desc">${it.desc}</div>` : ''}<div class="rc-bar"><span data-w="${it.pct}"></span></div></div></div>`;
+    const click = kind ? ` class="rank-chart-item ${cls} clickable" onclick="boardClick('${kind}',${i})"` : ` class="rank-chart-item ${cls}"`;
+    return `<div${click}><div class="rc-rank">${r}</div><div class="rc-body"><div class="rc-line"><span class="rc-title">${it.title}</span><span class="rc-val">${it.val}</span></div>${it.desc ? `<div class="rc-desc">${it.desc}</div>` : ''}<div class="rc-bar"><span data-w="${it.pct}"></span></div></div>${kind ? '<span class="rc-go">下钻 ›</span>' : ''}</div>`;
   }).join('') + '</div>';
 }
 function currentFilters() {
@@ -826,6 +931,11 @@ async function loadBoards() {
     api('/api/campaign/leaderboards/track' + (regionQs ? '?' + regionQs : '')),
     api('/api/campaign/leaderboards/warzone' + (regionQs ? '?' + regionQs : '')),
   ]);
+  boardData.content = content;
+  boardData.creator = creator;
+  boardData.track = track;
+  boardData.warzone = warzone;
+
   const contentMax = Math.max(...content.map(w => w.total_score || 0), 1);
   document.getElementById('boardContent').innerHTML = renderRankChart(
     content.slice(0, 20).map(w => ({
@@ -834,7 +944,7 @@ async function loadBoards() {
       val: `${w.total_score != null ? w.total_score : '-'}分`,
       pct: Math.round((w.total_score || 0) / contentMax * 100),
     })),
-    { emptyTxt: '还没有作品上榜', emptySub: '点击「＋ 首次上传建档」，T+7 回填后自动计分' }
+    { emptyTxt: '还没有作品上榜', emptySub: '点击「＋ 首次上传建档」，T+7 回填后自动计分', clickKind: 'content' }
   );
 
   const creatorMax = Math.max(...creator.map(c => c.total || 0), 1);
@@ -845,7 +955,7 @@ async function loadBoards() {
       val: `${c.total}战功`,
       pct: Math.round((c.total || 0) / creatorMax * 100),
     })),
-    { emptyTxt: '暂无创作者', emptySub: '' }
+    { emptyTxt: '暂无创作者', emptySub: '', clickKind: 'creator' }
   );
 
   const trackMax = Math.max(...track.map(t => t.total_merit || 0), 1);
@@ -856,7 +966,7 @@ async function loadBoards() {
       val: `${t.total_merit}战功`,
       pct: Math.round((t.total_merit || 0) / trackMax * 100),
     })),
-    { emptyTxt: '暂无赛道数据', emptySub: '' }
+    { emptyTxt: '暂无赛道数据', emptySub: '', clickKind: 'track' }
   );
 
   const warzoneEl = document.getElementById('boardWarzone');
@@ -864,7 +974,7 @@ async function loadBoards() {
     ? '<div class="zone-map">'+warzone.map((z,i)=>{
         const max = Math.max(...warzone.map(x=>x.total||0), 1);
         const pct = Math.round((z.total||0)/max*100);
-        return `<div class="zone" style="animation-delay:${i*0.05}s"><div class="z-name">${esc(z.region)}</div><div class="z-val">${z.total}</div><div class="z-sub">${z.s_a_count}个S/A · ${z.valid_creator_count}创作者</div><div class="z-bar"><span data-w="${pct}"></span></div></div>`;
+        return `<div class="zone clickable" style="animation-delay:${i*0.05}s" onclick="boardClick('warzone',${i})"><div class="z-name">${esc(z.region)}</div><div class="z-val">${z.total}</div><div class="z-sub">${z.s_a_count}个S/A · ${z.valid_creator_count}创作者</div><div class="z-bar"><span data-w="${pct}"></span></div></div>`;
       }).join('')+'</div>'
     : emptyBox('暂无战区数据','');
   requestAnimationFrame(() => {
@@ -875,6 +985,103 @@ function emptyBox(txt, sub) {
   return `<div class="empty">${EMPTY_ICON}${esc(txt)}${sub?`<div class="hint mt">${esc(sub)}</div>`:''}</div>`;
 }
 
+// ── 榜单下钻 ──
+function openDrill(title, html) {
+  document.getElementById('drillTitle').textContent = title;
+  document.getElementById('drillBody').innerHTML = html;
+  openModal('drillModal');
+}
+
+function drillRowHtml(o) {
+  return `<div class="drill-row" onclick="${o.onclick}"><div class="dr-main"><div class="dr-t">${o.title}</div>${o.sub ? `<div class="dr-s">${o.sub}</div>` : ''}</div>${o.val != null ? `<span class="dr-v">${o.val}</span>` : ''}</div>`;
+}
+
+function boardClick(kind, i) {
+  const it = (boardData[kind] || [])[i];
+  if (!it) return;
+  if (kind === 'content') return showDetail(it.id);
+  if (kind === 'creator') return drillCreator(it.name);
+  if (kind === 'track') return drillTrack(it.track);
+  if (kind === 'warzone') return drillZone(it.region);
+}
+
+async function showDetailByCode(code) {
+  try {
+    const w = await api('/api/campaign/works/by-code/' + encodeURIComponent(code));
+    if (w && w.id != null) showDetail(w.id);
+  } catch (e) {}
+}
+
+async function drillCreator(name) {
+  openDrill('创作者 · ' + name, '<div class="hint">加载中…</div>');
+  let rows = [];
+  try { rows = await api('/api/campaign/works?creator=' + encodeURIComponent(name)) || []; } catch (e) {}
+  document.getElementById('drillBody').innerHTML = rows.length
+    ? `<div class="drill-sec"><h4>作品（${rows.length}）</h4>` + rows.map(w => drillRowHtml({
+        title: esc(w.title || w.code),
+        sub: `${esc(w.track || '')} · ${esc(w.region || '')} · ${STATUS_TXT[w.status] || w.status || ''}`,
+        val: w.total_score != null ? (w.total_score + '分') : '-',
+        onclick: `closeModal('drillModal');showDetail(${w.id})`,
+      })).join('') + '</div>'
+    : '<div class="empty">该创作者暂无作品</div>';
+}
+
+function drillTrack(track) {
+  const t = (boardData.track || []).find(x => x.track === track);
+  if (!t) return;
+  const regions = t.regions || [];
+  const html = `<div class="drill-sec"><h4>赛道合计</h4>
+      <div class="drill-row" style="cursor:default"><div class="dr-main"><div class="dr-t">${esc(t.track)}</div><div class="dr-s">${t.valid_creator_count} 位有效创作者 · ${regions.length} 个区域</div></div><span class="dr-v">${t.total_merit} 战功</span></div>
+    </div>` + regions.map(rg => `<div class="drill-sec"><h4>${esc(rg.region)} · ${rg.total_merit} 战功（Top5）</h4>` +
+      (rg.top5 || []).map(w => drillRowHtml({
+        title: esc(w.title || w.code),
+        sub: '作品码 ' + esc(w.code || ''),
+        val: (w.merit || 0) + '战功',
+        onclick: `closeModal('drillModal');showDetailByCode('${esc(w.code || '')}')`,
+      })).join('') + '</div>').join('');
+  openDrill('赛道 · ' + track, html || '<div class="empty">暂无数据</div>');
+}
+
+async function drillZone(region) {
+  openDrill('大区 · ' + region, '<div class="hint">加载中…</div>');
+  let subs = [], works = [];
+  try {
+    const [a, b] = await Promise.all([
+      api('/api/campaign/region/subregions?big=' + encodeURIComponent(region)),
+      api('/api/campaign/works?region=' + encodeURIComponent(region)),
+    ]);
+    subs = a || []; works = b || [];
+  } catch (e) {}
+  document.getElementById('drillBody').innerHTML =
+    `<div class="drill-sec"><h4>细分区域（${subs.length}）</h4>` +
+      (subs.length ? subs.map(s => drillRowHtml({
+        title: esc(s.sub_region || s.region),
+        sub: `作品 ${s.work_count} · S·A ${s.s_a_count} · 创作者 ${s.valid_creator_count} · 线索 ${s.lead_count}`,
+        val: s.total_merit + '战功',
+        onclick: `closeModal('drillModal');drillZoneSub('${esc(s.region)}')`,
+      })).join('') : '<div class="empty">暂无细分区域数据</div>') + '</div>' +
+    `<div class="drill-sec"><h4>作品明细（${works.length}）</h4>` +
+      (works.length ? works.slice(0, 50).map(w => drillRowHtml({
+        title: esc(w.title || w.code),
+        sub: `${esc(w.track || '')} · ${STATUS_TXT[w.status] || w.status || ''}`,
+        val: w.total_score != null ? (w.total_score + '分') : '-',
+        onclick: `closeModal('drillModal');showDetail(${w.id})`,
+      })).join('') : '<div class="empty">暂无作品</div>') + '</div>';
+}
+
+async function drillZoneSub(fullRegion) {
+  openDrill('区域 · ' + fullRegion, '<div class="hint">加载中…</div>');
+  let works = [];
+  try { works = await api('/api/campaign/works?region=' + encodeURIComponent(fullRegion)) || []; } catch (e) {}
+  document.getElementById('drillBody').innerHTML = `<div class="drill-sec"><h4>作品明细（${works.length}）</h4>` +
+    (works.length ? works.slice(0, 50).map(w => drillRowHtml({
+      title: esc(w.title || w.code),
+      sub: `${esc(w.track || '')} · ${STATUS_TXT[w.status] || w.status || ''}`,
+      val: w.total_score != null ? (w.total_score + '分') : '-',
+      onclick: `closeModal('drillModal');showDetail(${w.id})`,
+    })).join('') : '<div class="empty">暂无作品</div>') + '</div>';
+}
+
 // ── 内容库 ──
 async function loadWorks() {
   const p = new URLSearchParams();
@@ -883,68 +1090,276 @@ async function loadWorks() {
   if (document.getElementById('fGrade').value) p.set('grade', document.getElementById('fGrade').value);
   if (document.getElementById('fCreator').value) p.set('creator', document.getElementById('fCreator').value);
   cacheWorks = await api('/api/campaign/works?'+p.toString());
-  document.getElementById('worksTbody').innerHTML = cacheWorks.length
-    ? cacheWorks.map(w=>`<tr>
-      <td><code>${esc(w.code)}</code></td><td>${esc(w.track)}</td><td title="${esc(w.title)}">${esc((w.title||'').slice(0,18))}</td>
-      <td>${esc(w.creator_name||'')}</td><td>${esc(w.region||'')}</td>
-      <td class="num">${w.ai_content_score!=null?w.ai_content_score:'-'}</td>
-      <td class="num">${w.total_score!=null?w.total_score:'-'}</td>
-      <td>${w.grade?`<span class="badge ${w.grade==='S'?'green':w.grade==='A'?'blue':w.grade==='B'?'muted':'yellow'}">${w.grade}</span>`:'-'}</td>
-      <td class="num">${w.total_merit!=null?w.total_merit:'-'}</td>
-      <td><span class="badge ${w.status==='qualified'?'green':(w.status==='pending_t7'?'yellow':'muted')}">${STATUS_TXT[w.status]||w.status}</span></td>
-      <td>${w.status==='pending_t7'?`<button class="btn primary sm" onclick="showSubmit(${w.id})">T+7 回填</button> `:''}<button class="btn sm" onclick="showDetail(${w.id})">详情</button></td></tr>`).join('')
-    : `<tr><td colspan="11"><div class="empty">${EMPTY_ICON}还没有作品<div class="hint mt">点击「＋ 首次上传建档」开始</div></div></td></tr>`;
+  renderWorks();
 }
+function renderWorks() {
+  const rows = sortedRows('worksTable', cacheWorks, {
+    code: w => w.code || '', track: w => w.track || '', title: w => w.title || '',
+    creator_name: w => w.creator_name || '', region: w => w.region || '',
+    url: w => w.url || '',
+    ai_content_score: w => NUM(w.ai_content_score), total_score: w => NUM(w.total_score),
+    grade: w => w.grade || '', total_merit: w => NUM(w.total_merit), status: w => w.status || '',
+  });
+  document.getElementById('worksTbody').innerHTML = rows.length
+    ? rows.map(w=>`<tr>
+      <td><code>${esc(w.code)}</code></td><td class="hide-sm">${esc(w.track)}</td><td title="${esc(w.title)}">${esc((w.title||'').slice(0,18))}</td>
+      <td class="hide-md">${esc(w.creator_name||'')}</td><td class="hide-md">${esc(w.region||'')}</td>
+      <td>${workUrlHtml(w.url)}</td>
+      <td class="num hide-sm">${w.ai_content_score!=null?w.ai_content_score:'-'}</td>
+      <td class="num">${w.total_score!=null?w.total_score:'-'}</td>
+      <td class="hide-md">${w.grade?`<span class="badge ${w.grade==='S'?'green':w.grade==='A'?'blue':w.grade==='B'?'muted':'yellow'}">${w.grade}</span>`:'-'}</td>
+      <td class="num hide-md">${w.total_merit!=null?w.total_merit:'-'}</td>
+      <td><span class="badge ${w.status==='qualified'?'green':(w.status==='pending_t7'?'yellow':'muted')}">${STATUS_TXT[w.status]||w.status}</span></td>
+      <td style="white-space:nowrap">${w.status==='pending_t7'?`<button class="btn primary sm" onclick="showSubmit(${w.id})">T+7 回填</button> `:''}<button class="btn sm" onclick="editWorkTrack(${w.id})">改赛道</button> <button class="btn sm" onclick="toggleWorkExclude(${w.id}, ${w.status==='excluded'?'false':'true'})">${w.status==='excluded'?'恢复参战':'移出'}</button> <button class="btn sm" onclick="showDetail(${w.id})">详情</button></td></tr>`).join('')
+    : `<tr><td colspan="12"><div class="empty">${EMPTY_ICON}还没有作品<div class="hint mt">点击「＋ 首次上传建档」开始</div></div></td></tr>`;
+  refreshSortInds('worksTable');
+}
+tableRenderers['worksTable'] = renderWorks;
 
 // ── 创作者库 ──
 async function loadCreators() {
   const region = document.getElementById('fRegion').value;
   const qs = new URLSearchParams({limit:'200', all_status:'1'});
   if (region) qs.set('region', region);
-  const rows = await api('/api/campaign/leaderboards/creator?' + qs.toString());
+  cacheCreators = await api('/api/campaign/leaderboards/creator?' + qs.toString());
+  renderCreators();
+}
+function renderCreators() {
+  const rows = sortedRows('creatorsTable', cacheCreators, {
+    name: c => c.name || '', region: c => c.region || '',
+    top3_merit: c => NUM(c.top3_merit), continuous_weeks_bonus: c => NUM(c.continuous_weeks_bonus),
+    total: c => NUM(c.total), work_count: c => NUM(c.work_count),
+  });
   document.getElementById('creatorsTbody').innerHTML = rows.length
-    ? rows.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.region||'')}</td><td class="num">${c.top3_merit}</td><td class="num">${c.continuous_weeks_bonus}</td><td class="num" style="color:var(--gold)"><b>${c.total}</b></td><td class="num">${c.work_count}</td></tr>`).join('')
+    ? rows.map(c=>`<tr><td>${esc(c.name)}</td><td class="hide-md">${esc(c.region||'')}</td><td class="num">${c.top3_merit}</td><td class="num hide-md">${c.continuous_weeks_bonus}</td><td class="num" style="color:var(--gold)"><b>${c.total}</b></td><td class="num hide-sm">${c.work_count}</td></tr>`).join('')
     : '<tr><td colspan="6"><div class="empty">暂无创作者数据</div></td></tr>';
+  refreshSortInds('creatorsTable');
+}
+tableRenderers['creatorsTable'] = renderCreators;
+
+// ── 视频数据库（T+7 平台数据表现）──
+// 作品链接只在是合法 http(s) 时才做成链接：历史数据里混进过 COS 对象 key，
+// 直接塞进 href 会变成相对路径、点开就是 404。
+// stopProp 用于「整行可点」的表格（视频数据库），否则点链接会连带打开详情。
+function workUrlHtml(url, stopProp) {
+  const s = (url || '').trim();
+  if (!/^https?:\/\//i.test(s)) return '<span class="hint">未填写</span>';
+  return `<a href="${esc(s)}" target="_blank" rel="noopener"${stopProp ? ' onclick="event.stopPropagation()"' : ''} title="${esc(s)}" style="color:var(--brand);text-decoration:underline;white-space:nowrap">打开作品 ↗</a>`;
 }
 
-// ── 传播记录库（T+7 平台数据表现）──
 async function loadProp() {
-  const rows = await api('/api/campaign/propagation');
+  cacheProp = await api('/api/campaign/propagation');
+  renderProp();
+}
+function renderProp() {
+  const rows = sortedRows('propTable', cacheProp, {
+    code: p => p.code || '', title: p => p.title || '', url: p => p.url || '',
+    plays: p => NUM(p.plays), retention_3s: p => NUM(p.retention_3s),
+    completion_rate: p => NUM(p.completion_rate), comment_count: p => NUM(p.comment_count),
+    like_count: p => NUM(p.like_count), share_count: p => NUM(p.share_count),
+    submit_count: p => NUM(p.submit_count), submitted_at: p => p.submitted_at || '',
+  });
   document.getElementById('propTbody').innerHTML = rows.length
-    ? rows.map(p=>`<tr><td><code>${esc(p.code)}</code></td><td>${esc((p.title||'').slice(0,18))}</td><td class="num">${p.plays??'-'}</td><td class="num">${p.retention_3s??'-'}</td><td class="num">${p.completion_rate??'-'}</td><td class="num">${p.deep_interaction_rate??'-'}</td><td class="num">${p.like_rate??'-'}</td><td>${esc((p.submitted_at||'').slice(0,16))}</td></tr>`).join('')
-    : '<tr><td colspan="8"><div class="empty">暂无传播数据，提交 T+7 数据后自动生成</div></td></tr>';
+    ? rows.map(p=>{
+        // 整行可点：点任意一格都跳到该作品的详情（打分明细 / 素材 / 凭证 / 历次回传）
+        const open = p.work_id != null ? `style="cursor:pointer" onclick="showDetail(${p.work_id})" title="表格是本作品最新一次回传的数据，点击查看历次明细"` : '';
+        const n = Number(p.submit_count) || 0;
+        // 多次回传的作品：次数列带上「最新第 N 次」，提醒后台这里只是最后一次
+        const seqCell = n > 1
+          ? `<span class="badge blue">${n} 次</span> <span class="hint">最新第 ${n} 次</span>`
+          : (n === 1 ? '<span class="hint">1 次</span>' : '<span class="hint">-</span>');
+        // 作品链接是投稿人在 T+7 回传时填的，这里直接可点跳转
+        const linkCell = workUrlHtml(p.url, true);
+        // 数据截图：这行六项数字的来源。整行可点，缩略图上要 stopPropagation，
+        // 否则点图会连带打开作品详情弹窗。
+        const shots = p.screenshot_files || [];
+        const shotMeta = `后台数据截图 · ${esc(p.title || '')} · 最新第 ${n || 1} 次回传`;
+        const shotCell = shots.length
+          ? `<span style="display:flex;gap:4px;flex-wrap:wrap">` + shots.map(f =>
+              `<span><img src="${esc(f.url || '')}" class="thumb-zoom sm" title="点击查看大图" data-meta="${shotMeta}" onclick="event.stopPropagation();showImage(this.src,this.dataset.meta)" onerror="imageLoadError(this)"></span>`).join('') + `</span>`
+          : '<span class="hint">无截图</span>';
+        return `<tr ${open}><td><code>${esc(p.code)}</code></td><td>${esc((p.title||'').slice(0,18))}</td><td>${linkCell}</td><td class="num">${p.plays??'-'}</td><td class="num">${p.retention_3s??'-'}</td><td class="num">${p.completion_rate??'-'}</td><td class="num hide-md">${p.comment_count??'-'}</td><td class="num hide-sm">${p.like_count??'-'}</td><td class="num hide-sm">${p.share_count??'-'}</td><td>${seqCell}</td><td class="hide-md">${esc((p.submitted_at||'').slice(0,16))}</td><td>${shotCell}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="12"><div class="empty">暂无传播数据，提交 T+7 数据后自动生成</div></td></tr>';
+  refreshSortInds('propTable');
+}
+tableRenderers['propTable'] = renderProp;
+function imageLoadError(img) {
+  const holder = img && img.parentElement;
+  if (!holder) return;
+  holder.textContent = '图片加载失败/请重传';
+  holder.style.color = '#dc2626';
 }
 
 // ── 有效线索库 ──
 async function loadCred() {
-  const rows = await api('/api/campaign/credentials');
-  const tp = {screenshot:{label:'后台数据截图', cls:'blue'}, business:{label:'有效线索回传', cls:'green'}};
-  const typeBadge = t => { const x = tp[t] || {label:t, cls:'muted'}; return `<span class="badge ${x.cls}">${x.label}</span>`; };
+  cacheCred = await api('/api/campaign/credentials');
+  renderCred();
+}
+function renderCred() {
+  meritInfo = {};
+  const rows = sortedRows('credTable', cacheCred, {
+    code: c => c.code || '', title: c => c.title || '',
+    seq: c => NUM(c.seq), review_status: c => c.review_status || 'pending',
+    created_at: c => c.created_at || '',
+  });
   document.getElementById('credTbody').innerHTML = rows.length
-    ? rows.map(c=>`<tr><td><code>${esc(c.code)}</code></td><td>${esc((c.title||'').slice(0,18))}</td><td>${typeBadge(c.type)}</td><td>${c.url?`<a href="${esc(c.url)}" target="_blank"><img src="${esc(c.url)}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;display:block"></a>`:esc(c.file||'')}</td><td>${esc(c.note||'')}</td><td>${esc((c.created_at||'').slice(0,16))}</td></tr>`).join('')
-    : '<tr><td colspan="6"><div class="empty">暂无有效线索</div></td></tr>';
+    ? rows.map(c=>{
+        // 同一作品多次回传时，凭证按「第几次回传提交的」逐条保留，这里标明归属
+        const n = Number(c.total_seq) || 1;
+        const seqCell = `<span class="badge ${n > 1 ? 'blue' : 'muted'}">第 ${Number(c.seq) || 1} 次</span>` + (n > 1 ? ` <span class="hint">共 ${n} 次</span>` : '');
+        // 人工审核：每条有效线索单独判「合格 / 不合格」，只标记不自动改分
+        const st = c.review_status || 'pending';
+        const stMap = { approved: ['green', '已合格'], rejected: ['red', '不合格'], pending: ['muted', '待审核'] };
+        const [stCls, stTxt] = stMap[st] || stMap.pending;
+        const reviewCell = `<span class="badge ${stCls}">${stTxt}</span>
+          <button class="btn sm" style="margin-left:4px" onclick="reviewCred(${c.id},'approve')">合格</button>
+          <button class="btn sm danger" style="margin-left:4px" onclick="reviewCred(${c.id},'reject')">不合格</button>
+          ${st !== 'pending' ? `<button class="btn sm" style="margin-left:4px" onclick="reviewCred(${c.id},'reset')">重置</button>` : ''}
+          ${c.review_note ? `<div class="hint">${esc(c.review_note)}</div>` : ''}`;
+        // 战功：系统战功 + 人工追加；追加/扣减都在这里做，留痕可查
+        const merit = c.work_merit == null ? null : NUM(c.work_merit);
+        const manual = NUM(c.work_manual_merit) || 0;
+        const meritCell = merit == null
+          ? '<span class="hint">未计分</span>'
+          : `<b>${merit}</b>${manual ? ` <span class="hint">(人工 ${manual > 0 ? '+' : ''}${manual})</span>` : ''}
+             <button class="btn sm" style="margin-left:4px" onclick="showMerit(${c.work_id})">追加战功</button>`;
+        // 追加战功弹窗要显示作品名/当前战功：按下标缓存，onclick 只传 id（避免标题里的引号破坏 HTML）
+        meritInfo[c.work_id] = { title: c.title || '(无标题)', merit: merit == null ? 0 : merit, manual: manual, unscored: merit == null };
+        const credMeta = `有效线索回传 · 第 ${Number(c.seq) || 1} 次回传${c.title ? ' · ' + c.title : ''}`;
+        return `<tr><td class="hide-md"><code>${esc(c.code)}</code></td><td>${esc((c.title||'').slice(0,18))}</td><td>${seqCell}</td><td>${c.url?`<img src="${esc(c.url)}" class="thumb-zoom" title="点击查看大图" data-meta="${esc(credMeta)}" onclick="showImage(this.src,this.dataset.meta)">`:esc(c.file||'')}</td><td>${reviewCell}</td><td>${meritCell}</td><td>${esc((c.created_at||'').slice(0,16))}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="7"><div class="empty">暂无有效线索</div></td></tr>';
+  refreshSortInds('credTable');
+}
+tableRenderers['credTable'] = renderCred;
+
+// ── 有效线索库：人工审核凭证是否合格 ──
+async function reviewCred(id, action) {
+  let note = '';
+  if (action === 'reject') {
+    note = (prompt('这条凭证不合格的原因（可留空）') || '').trim();
+  }
+  try {
+    await api(`/api/campaign/credentials/${id}/review`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action, note }),
+    });
+    await loadCred();
+    // 详情弹窗里也能审：审完顺手把详情刷新一下，不然状态还是旧的
+    const dm = document.getElementById('detailModal');
+    if (curWorkId && dm && !dm.classList.contains('hidden')) await showDetail(curWorkId);
+  } catch (e) {
+    alert('审核失败：' + e.message);
+  }
+}
+
+// ── 有效线索库：人工审核追加战功 ──
+function showMerit(workId) {
+  const info = meritInfo[workId] || { title: '(无标题)', merit: 0, manual: 0, unscored: true };
+  meritWorkId = workId;
+  document.getElementById('meritWorkInfo').innerHTML =
+    `作品：<b>${esc(info.title)}</b><br>当前战功 <b>${info.merit}</b>`
+    + (info.manual ? `（系统 ${info.merit - info.manual} + 人工 ${info.manual > 0 ? '+' : ''}${info.manual}）` : '')
+    + (info.unscored ? '<br><span style="color:#d97706">该作品尚未计分，追加战功可能不会显示在榜单上</span>' : '');
+  document.getElementById('meritDelta').value = '';
+  document.getElementById('meritReason').value = '';
+  document.getElementById('meritMsg').textContent = '';
+  openModal('meritModal');
+}
+
+async function doAdjustMerit() {
+  const msg = document.getElementById('meritMsg');
+  const d = parseFloat(document.getElementById('meritDelta').value);
+  if (isNaN(d) || d === 0) return alert('请填写要追加的战功分值（不能为 0）');
+  const reason = (document.getElementById('meritReason').value || '').trim();
+  if (!reason) return alert('请填写追加战功的理由');
+  msg.style.color = '';
+  msg.textContent = '提交中…';
+  try {
+    const r = await api(`/api/campaign/works/${meritWorkId}/merit`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ delta: d, reason }),
+    });
+    msg.style.color = '#16a34a';
+    msg.textContent = `已追加：现总战功 ${r.total_merit}（系统 ${r.system_merit} + 人工 ${r.manual_merit}）`;
+    await Promise.all([loadCred(), loadProp(), loadWorks(), loadCreators()]);
+    await loadBoards();
+  } catch (e) {
+    msg.style.color = '#dc2626';
+    msg.textContent = '失败：' + e.message;
+  }
 }
 
 // ── 作品详情 ──
+
+// 评分标准来自后端配置（管理后台可改），下面三个工具函数供详情页渲染用
+async function loadScoreCfg() {
+  try { scoreCfg = await api('/api/campaign/score-config') || { metrics: [] }; }
+  catch (e) { /* 拉不到就沿用旧值，避免页面报错 */ }
+}
+// 某指标的满分 = 它所有档位里的最高分值
+function metricMax(key) {
+  const m = (scoreCfg.metrics || []).find(x => x.key === key);
+  if (!m) return null;
+  return Math.max(0, ...(m.bands || []).map(b => Number(b[1]) || 0));
+}
+function groupMetrics(group) {
+  return (scoreCfg.metrics || []).filter(m => m.group === group);
+}
+function groupTotal(group) {
+  const ms = groupMetrics(group);
+  if (!ms.length) return null;
+  return ms.reduce((s, m) => s + (metricMax(m.key) || 0), 0);
+}
+function groupDesc(group) {
+  const ms = groupMetrics(group);
+  if (!ms.length) return '';
+  return ms.map(m => `${m.label}(${metricMax(m.key)})`).join(' + ');
+}
+
 function scoreStandardHtml() {
+  // 等级分数线与各级基础战功都可在后台「评分标准」里改，这里必须读配置，
+  // 不能把 S=10/A=6/B=3 写死，否则后台改完这里的说明还是旧值。
+  const gb = scoreCfg.grades || [['S', 90], ['A', 70], ['B', 50]];
+  const gm = scoreCfg.grade_merit || {};
+  const gradeLine = gb.map(([n, thr]) => `${n}(≥${thr})=${gm[n] ?? 0}`).join(' / ') + ' / 待优化=0';
   return `<div class="ss-box">
     <div class="ss-title">评分标准</div>
-    <div class="ss-line"><b>好内容 = 内容表现 40% + 用户留存 30% + 互动传播 30%</b></div>
+    <div class="ss-line"><b>好内容 = 内容表现 40 分 + 用户留存 ${groupTotal('用户留存') ?? '-'} 分 + 互动传播 ${groupTotal('互动传播') ?? '-'} 分</b></div>
     <div class="ss-line"><span class="hl">内容表现 40 分</span> · AI 围绕「情理色诚」四维打分（情/理/色/诚，每维 0-10）</div>
-    <div class="ss-line"><span class="hl">用户留存 30 分</span> · 3秒留存(10) + 完播率(20)</div>
-    <div class="ss-line"><span class="hl">互动传播 30 分</span> · 深度互动率(20) + 点赞率(10)</div>
-    <div class="ss-line">等级 S=10 / A=6 / B=3 / 待优化=0 · 附加战功 矩阵+2 跨区+2 结果导向+1（单条上限 15）</div>
+    <div class="ss-line"><span class="hl">用户留存 ${groupTotal('用户留存') ?? '-'} 分</span> · ${groupDesc('用户留存')}</div>
+    <div class="ss-line"><span class="hl">互动传播 ${groupTotal('互动传播') ?? '-'} 分</span> · ${groupDesc('互动传播')}</div>
+    <div class="ss-line">基础战功 ${gradeLine} · 附加战功 矩阵+2 跨区+2 结果导向+1（单条上限 15，人工追加另计）</div>
   </div>`;
 }
 
 function subScoreHtml(s) {
   const rd = s.retention_detail || {};
   const id = s.interaction_detail || {};
+  // 2026-09 口径变更前的老记录：互动明细键名是 deep_interaction / like，
+  // 分值是按「率」算出来的，与现在的「个数」档位对不上，没法回算。
+  // 这类记录分数一律冻结不重算，明细按旧口径如实展示——否则三格全是「-」，
+  // 看上去像数据丢了。
+  const isLegacy = id.comment === undefined && id.heart === undefined
+    && id.share === undefined
+    && (id.deep_interaction !== undefined || id.like !== undefined);
+  if (isLegacy) {
+    return `<div class="sub-score">
+      <div class="si"><div class="l">3秒留存</div><div class="v">${rd.retention_3s ?? '-'} <b>/${metricMax('retention_3s') ?? '-'}</b></div></div>
+      <div class="si"><div class="l">完播率</div><div class="v">${rd.completion ?? '-'} <b>/${metricMax('completion') ?? '-'}</b></div></div>
+      <div class="si"><div class="l">深度互动率</div><div class="v">${id.deep_interaction ?? '-'} <b>旧口径</b></div></div>
+      <div class="si"><div class="l">点赞率</div><div class="v">${id.like ?? '-'} <b>旧口径</b></div></div>
+      <div class="si"><div class="l">转发</div><div class="v">${id.share ?? '-'} <b>旧口径</b></div></div>
+    </div>
+    <div class="hint" style="margin-top:6px">该作品按 2026-09 前的旧口径（深度互动率 / 点赞率）计分，分数已冻结，不随新档位重算。</div>`;
+  }
   return `<div class="sub-score">
-    <div class="si"><div class="l">3秒留存</div><div class="v">${rd.retention_3s ?? '-'} <b>/10</b></div></div>
-    <div class="si"><div class="l">完播率</div><div class="v">${rd.completion ?? '-'} <b>/20</b></div></div>
-    <div class="si"><div class="l">深度互动</div><div class="v">${id.deep_interaction ?? '-'} <b>/20</b></div></div>
-    <div class="si"><div class="l">点赞率</div><div class="v">${id.like ?? '-'} <b>/10</b></div></div>
+    <div class="si"><div class="l">3秒留存</div><div class="v">${rd.retention_3s ?? '-'} <b>/${metricMax('retention_3s') ?? '-'}</b></div></div>
+    <div class="si"><div class="l">完播率</div><div class="v">${rd.completion ?? '-'} <b>/${metricMax('completion') ?? '-'}</b></div></div>
+    <div class="si"><div class="l">评论个数</div><div class="v">${id.comment ?? '-'} <b>/${metricMax('comment') ?? '-'}</b></div></div>
+    <div class="si"><div class="l">爱心个数</div><div class="v">${id.heart ?? '-'} <b>/${metricMax('heart') ?? '-'}</b></div></div>
+    <div class="si"><div class="l">转发次数</div><div class="v">${id.share ?? '-'} <b>/${metricMax('share') ?? '-'}</b></div></div>
   </div>`;
 }
 
@@ -975,10 +1390,48 @@ function dimDetailHtml(s) {
   }).join('') + `</div>`;
 }
 
+// T+7 六项指标：字段名 ↔ 中文名（与后端 campaign_scoring.OCR_METRIC_DEFS 对齐）
+const OCR_LABELS = [
+  ["plays", "自然播放量"], ["retention_3s", "3秒留存率%"],
+  ["completion_rate", "完播率%"], ["comment_count", "评论个数"],
+  ["like_count", "爱心个数"], ["share_count", "转发次数"],
+];
+
+// 统计 AI 识别值与用户最终提交值不一致的项数；没识别过返回 null
+function ocrChangedCount(ocrRaw, submitted) {
+  if (!ocrRaw || typeof ocrRaw !== 'object') return null;
+  let n = 0, recognized = 0;
+  OCR_LABELS.forEach(([k]) => {
+    const a = ocrRaw[k];
+    if (a === null || a === undefined) return;
+    recognized++;
+    if (String(a) !== String((submitted || {})[k] ?? '')) n++;
+  });
+  return recognized ? n : null;
+}
+
+// 详情页主体：把「AI 识别原值 / 用户提交值」并排列出来，方便抽查识别准确率与改数行为
+function ocrCompareHtml(ocrRaw, submitted) {
+  const changed = ocrChangedCount(ocrRaw, submitted);
+  if (changed === null) return '';
+  const rows = OCR_LABELS.map(([k, label]) => {
+    const a = ocrRaw[k], has = a !== null && a !== undefined;
+    const b = (submitted || {})[k];
+    const badge = !has ? '<span class="hint">—</span>'
+      : (String(a) === String(b ?? '') ? '<span class="badge green">一致</span>' : '<span class="badge yellow">已改</span>');
+    return `<tr><td class="hide-md">${esc(label)}</td><td>${has ? esc(String(a)) : '<span class="hint">未识别</span>'}</td><td>${b === null || b === undefined || b === '' ? '-' : esc(String(b))}</td><td>${badge}</td></tr>`;
+  }).join('');
+  return `<div class="mt"><h4 style="margin:0 0 4px">截图 AI 识别 vs 提交值
+      ${changed ? `<span class="badge yellow">${changed} 项被改</span>` : '<span class="badge green">全部一致</span>'}</h4>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th class="hide-md">指标</th><th>AI 识别</th><th>提交值</th><th>结果</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
 async function showDetail(id) {
   curWorkId = id;
-  const w = await api('/api/campaign/works/'+id);
+  // 评分标准可能已被后台调整，每次打开详情都取一次最新值
+  const [w] = await Promise.all([api('/api/campaign/works/'+id), loadScoreCfg()]);
   const s = w.scores || {}, m = w.metrics || {};
+  correctionWork = w;
   let html = `<div class="detail-head"><div class="code">${esc(w.code)}</div><div class="hint mt">${esc(w.track)} · <span class="badge ${w.status==='qualified'?'green':'yellow'}">${STATUS_TXT[w.status]||w.status}</span></div></div>
     <h2 style="margin:2px 0 4px">${esc(w.title||'(无标题)')}</h2>
     <div class="hint">${esc(w.creator_name||'')}${w.region?` · ${esc(w.region)}`:''}</div>`;
@@ -991,7 +1444,7 @@ async function showDetail(id) {
       const u = m && (m.cos_url || m.local_url || m.thumb || m.thumb_remote || '');
       if (!u) return '';
       if (m.is_video) return `<video controls preload="metadata" src="${esc(u)}"${m.thumb ? ` poster="${esc(m.thumb)}"` : ''}></video>`;
-      return `<img src="${esc(u)}" alt="作品画面" loading="lazy">`;
+      return `<img src="${esc(u)}" alt="作品画面" loading="lazy" onerror="imageLoadError(this)">`;
     }).join('') + `</div>`;
   }
 
@@ -1004,8 +1457,9 @@ async function showDetail(id) {
     <div class="score-grid">
       <div class="score-item"><div class="v">${s.total_score}</div><div class="l">总分 /100</div></div>
       <div class="score-item"><div class="v"><span class="badge ${s.grade==='S'?'green':s.grade==='A'?'blue':s.grade==='B'?'muted':'yellow'}" style="font-size:16px">${s.grade}</span></div><div class="l">等级</div></div>
-      <div class="score-item"><div class="v">${s.total_merit}</div><div class="l">战功（上限 15）</div></div>
+      <div class="score-item"><div class="v">${s.total_merit}</div><div class="l">战功${s.manual_merit ? `（人工 ${s.manual_merit > 0 ? '+' : ''}${s.manual_merit}）` : '（上限 15）'}</div></div>
     </div>`;
+    if (s.manual_merit_reason) html += `<p class="hint">人工追加战功理由：${esc(s.manual_merit_reason)}（${esc((s.manual_merit_at || '').slice(0, 16))}）</p>`;
     html += dimDetailHtml(s);
     if (s.ai_reason) html += `<p class="hint mt">AI 打分理由：${esc(s.ai_reason)}</p>`;
     html += scoreStandardHtml();
@@ -1031,21 +1485,165 @@ async function showDetail(id) {
   } else {
     html += `<div class="mt"><p class="hint">内容表现分打分中，请稍候…</p><button class="btn primary sm" onclick="showSubmit(${w.id})">T+7 提交打分</button></div>`;
   }
-  if (m) html += `<div class="mt hint">播放 ${m.plays??'-'} · 3秒留存 ${m.retention_3s??'-'}% · 完播 ${m.completion_rate??'-'}% · 深度互动 ${m.deep_interaction_rate??'-'}% · 点赞 ${m.like_rate??'-'}%</div>`;
-  if (w.credentials && w.credentials.length) {
-    const tp = {screenshot:'后台数据截图', business:'有效线索回传'};
-    html += `<div class="mt"><h4 style="margin:0 0 4px">凭证（${w.credentials.length}）</h4>` +
-      w.credentials.map(c=>`<div class="hint" style="display:flex;align-items:center;gap:8px">[${tp[c.type]||c.type}] ${c.url?`<a href="${esc(c.url)}" target="_blank"><img src="${esc(c.url)}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;display:block"></a>`:esc(c.file||'')}${c.note?' · '+esc(c.note):''}</div>`).join('') + '</div>';
+  if (w.metrics && Object.keys(w.metrics).length) html += `<div class="mt hint">最新一次回传：播放 ${m.plays??'-'} · 3秒留存 ${m.retention_3s??'-'}% · 完播 ${m.completion_rate??'-'}% · 评论 ${m.comment_count??'-'} 条 · 爱心 ${m.like_count??'-'} 个 · 转发 ${m.share_count??'-'} 次${m.share_count!=null&&m.plays?'（转发率 '+(Math.round(m.share_count/m.plays*10000)/100)+'%）':''}</div>`;
+  if (m) html += ocrCompareHtml(m.ocr_raw, m);
+
+  // 历次回传明细：页面主体只展示最后一次的成绩，之前几次在这里逐次列出
+  const hist = Array.isArray(w.metrics_history) ? w.metrics_history : [];
+  if (hist.length) {
+    const lastSeq = Math.max(...hist.map(h => Number(h.seq) || 0));
+    const thumb = label => f => f && f.url ? `<span><img src="${esc(f.url)}" class="thumb-zoom sm" title="点击查看大图" data-meta="${esc(label + (f.note ? ' · ' + f.note : ''))}" onclick="showImage(this.src,this.dataset.meta)" onerror="imageLoadError(this)"></span>` : '<span class="hint">截图地址缺失</span>';
+    html += `<div class="mt"><h4 style="margin:0 0 6px">T+7 回传记录（共 ${hist.length} 次，页面主数据为第 ${lastSeq} 次）</h4>`;
+    html += hist.slice().reverse().map(h => {
+      const isLast = Number(h.seq) === lastSeq;
+      const shots = (h.screenshot_files||[]).map(thumb('后台数据截图')).join('');
+      const proofs = (h.business_files||[]).map(thumb('有效线索回传')).join('');
+      const scoreTxt = h.qualified
+        ? `总分 <b>${h.total_score ?? '-'}</b> · 等级 ${esc(h.grade||'-')} · 战功 ${h.total_merit ?? '-'}`
+        : `<span style="color:#d97706">未计分：${esc(h.reject_reason||'')}</span>`;
+      // 本次是否用过截图识别、以及用户有没有改动识别值
+      const chg = ocrChangedCount(h.ocr_raw, h);
+      const ocrTxt = chg === null
+        ? '<span class="hint">未使用截图识别</span>'
+        : (chg ? `<span class="badge yellow">AI 识别 ${chg} 项被改</span>` : '<span class="badge green">与 AI 识别一致</span>');
+      return `<div style="border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:8px${isLast?';background:var(--bg-2)':''}">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="badge ${h.qualified?'green':'yellow'}">第 ${h.seq} 次回传${isLast?' · 最新':''}</span>
+            <span class="hint">${esc(h.submitter||'')} ${esc((h.submitted_at||'').slice(0,16))}</span>
+            <span class="hint">${scoreTxt}</span>
+            ${ocrTxt}
+          </div>
+          <div class="hint mt">播放 ${h.plays??'-'} · 3秒留存 ${h.retention_3s??'-'}% · 完播 ${h.completion_rate??'-'}% · 评论 ${h.comment_count??'-'} 条 · 爱心 ${h.like_count??'-'} 个 · 转发 ${h.share_count??'-'} 次</div>
+          ${(shots||proofs) ? `<div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${shots?`<span class="hint">截图</span>${shots}`:''}${proofs?`<span class="hint">有效线索</span>${proofs}`:''}</div>` : ''}
+        </div>`;
+    }).join('');
+    html += `</div>`;
   }
+
+  // 有效线索（选填材料，审核通过后可据此人工追加战功）。
+  // 后台数据截图不在这里——它属于「上面那段 T+7 回传记录」，每行都带当次的截图缩略图，
+  // 「视频数据库」里也有一列可直接看大图。
+  const leads = (w.credentials || []).filter(c => (c.type || 'business') === 'business');
+  if (leads.length) {
+    html += `<div class="mt"><h4 style="margin:0 0 4px">有效线索（${leads.length}）</h4>` +
+      leads.map(c=>{
+        const st = c.review_status || 'pending';
+        const stMap = { approved: ['green','已合格'], rejected: ['red','不合格'], pending: ['muted','待审核'] };
+        const [cls, txt] = stMap[st] || stMap.pending;
+        const credMeta = `有效线索回传${c.seq?' · 第 '+c.seq+' 次回传':''}${c.review_note||c.note?' · '+(c.review_note||c.note):''}`;
+        return `<div class="hint" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${c.seq?'第 '+c.seq+' 次回传':''}
+          <span class="badge ${cls}">${txt}</span>
+          ${c.url?`<img src="${esc(c.url)}" class="thumb-zoom sm" title="点击查看大图" data-meta="${esc(credMeta)}" onclick="showImage(this.src,this.dataset.meta)" onerror="imageLoadError(this)">`:esc(c.file||'')}
+          <button class="btn sm" onclick="reviewCred(${c.id},'approve')">合格</button>
+          <button class="btn sm danger" onclick="reviewCred(${c.id},'reject')">不合格</button>
+          ${c.review_note?`<span>· ${esc(c.review_note)}</span>`:(c.note?`<span>· ${esc(c.note)}</span>`:``)}</div>`;
+      }).join('') + '</div>';
+  }
+  if (curUser && curUser.role === 'admin' && hist.length) html += correctionFormHtml(w);
   if (w.status === 'pending_review') html += `<div class="mt"><button class="btn primary sm" onclick="doReview(${w.id},'approve')">初审通过</button> <button class="btn danger sm" onclick="doReview(${w.id},'reject')">初审打回</button></div>`;
-  if (w.status === 'pending_t7') html += `<div class="mt"><button class="btn primary sm" onclick="showSubmit(${w.id})">T+7 二次提交</button></div>`;
+  if (['pending_t7', 'qualified', 'eliminated'].includes(w.status)) {
+    const remaining = Number.isFinite(Number(w.remaining_submissions)) ? Number(w.remaining_submissions) : Math.max(0, 3 - hist.length);
+    html += `<div class="mt"><span class="hint">${remaining > 0 ? `还可回传 ${remaining} 次` : '已回传 3/3 次，不能继续提交'}</span>${remaining > 0 ? ` <button class="btn primary sm" onclick="showSubmit(${w.id})">T+7 二次提交</button>` : ''}</div>`;
+  }
   html += `<div class="mt"><button class="btn danger sm" onclick="doAudit(${w.id},'disqualify')">反作弊清零</button> <button class="btn sm" onclick="doAudit(${w.id},'clear')">抽检通过</button></div>`;
 
   document.getElementById('detailBody').innerHTML = html;
   openModal('detailModal');
 }
 
+// ── 管理员更正最新一次 T+7 指标 ──
+function correctionFormHtml(w) {
+  const m = w.metrics || {};
+  const latest = (Array.isArray(w.metrics_history) ? w.metrics_history : []).slice(-1)[0] || {};
+  const shots = Array.isArray(latest.screenshot_files) ? latest.screenshot_files : [];
+  const values = OCR_LABELS.map(([key, label]) =>
+    `<div class="form-row" style="flex:1;min-width:180px"><label>${esc(label)}</label><input id="corr_${key}" type="number" ${key === 'plays' || key === 'comment_count' || key === 'like_count' || key === 'share_count' ? 'step="1"' : 'step="0.1"'} value="${m[key] ?? ''}"></div>`
+  ).join('');
+  const shotKeys = shots.map(x => x.file || '').filter(Boolean).join(',');
+  return `<div class="ss-box mt"><div class="ss-title">管理员更正最新一次回传</div>
+    <div class="hint" style="margin-bottom:8px">只更正当前最新有效回传，历史快照不修改。截图可保留现有 key，或填写已上传的后台数据截图 key；不在此处伪造上传。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${values}</div>
+    <div class="form-row"><label>后台数据截图 key（逗号分隔，可保留）</label><input id="corr_screenshot" value="${esc(shotKeys)}" placeholder="留空表示不更换截图"></div>
+    <div class="form-row"><label>更正理由 *</label><textarea id="corr_reason" rows="2" style="width:100%;padding:8px"> </textarea></div>
+    <button class="btn primary sm" onclick="saveMetricsCorrection(${w.id})">保存指标更正</button>
+    <button class="btn sm" onclick="reRecognize(${w.id})" title="用当前截图重新跑一次 AI 识别，结果回填到上面的输入框，核对后再保存">重新识别截图</button>
+    <span id="corrMsg" class="hint" style="margin-left:8px"></span>
+  </div>`;
+}
+
+// 二次识别：对当前截图重跑 AI 识别（绕过缓存），把识别到的值回填到输入框。
+// 只回填、不落库——识别结果对不对由管理员核对，确认后再点「保存指标更正」。
+async function reRecognize(workId) {
+  const msg = document.getElementById('corrMsg');
+  const keys = (document.getElementById('corr_screenshot').value || '')
+    .split(',').map(x => x.trim()).filter(Boolean);
+  if (!keys.length) { msg.textContent = '没有可用的截图 key，请先填写后台数据截图 key'; return; }
+  msg.textContent = '识别中…（约几秒）';
+  try {
+    const r = await api('/api/campaign/ocr-metrics', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ files: keys.map(k => ({file: k})), refresh: true }),
+    });
+    const m = (r && r.metrics) || {};
+    const filled = [], missed = [];
+    OCR_LABELS.forEach(([key, label]) => {
+      const v = m[key];
+      const el = document.getElementById('corr_' + key);
+      if (v === null || v === undefined) { missed.push(label); return; }
+      if (el) el.value = v;
+      filled.push(label + ' ' + v);
+    });
+    if (!filled.length) {
+      msg.textContent = '识别未读出任何数值：' + ((r && r.error) || (r && r.note) || '请检查截图是否清晰、是否包含这些数据');
+      return;
+    }
+    msg.textContent = '识别完成并已回填：' + filled.join('、')
+      + (missed.length ? '；未识别：' + missed.join('、') : '')
+      + '。请核对后点「保存指标更正」。';
+  } catch (e) {
+    msg.textContent = '识别失败：' + e.message;
+  }
+}
+
+async function saveMetricsCorrection(workId) {
+  const metrics = {};
+  OCR_LABELS.forEach(([key]) => {
+    const raw = (document.getElementById('corr_' + key).value || '').trim();
+    if (raw !== '') metrics[key] = (key === 'plays' || key === 'comment_count' || key === 'like_count' || key === 'share_count') ? parseInt(raw, 10) : parseFloat(raw);
+  });
+  const reason = (document.getElementById('corr_reason').value || '').trim();
+  const keys = (document.getElementById('corr_screenshot').value || '').split(',').map(x => x.trim()).filter(Boolean);
+  if (!reason) return alert('请填写更正理由');
+  if (!Object.keys(metrics).length && !keys.length) return alert('请至少填写一项指标或保留截图 key');
+  const msg = document.getElementById('corrMsg');
+  msg.textContent = '保存中…';
+  try {
+    const body = { metrics, reason };
+    if (keys.length) body.screenshot = keys.map(file => ({file}));
+    await api(`/api/campaign/works/${workId}/metrics/correct`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+    });
+    msg.textContent = '已保存，正在刷新详情…';
+    await showDetail(workId);
+  } catch (e) {
+    msg.textContent = '保存失败：' + e.message;
+  }
+}
+
 // ── 人工改分 ──
+async function doOverrideAi() {
+  const v = parseFloat(document.getElementById('ovAiScore').value);
+  if (isNaN(v) || v < 0 || v > 40) return alert('请输入 0-40 的内容表现分');
+  try {
+    await api('/api/campaign/works/' + curWorkId + '/score', {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ai_content_score: v}),
+    });
+    await showDetail(curWorkId);
+    await refreshAll();
+  } catch (e) { alert('保存改分失败：' + e.message); }
+}
+
 async function doOverride() {
   const v = parseFloat(document.getElementById('ovScore').value);
   if (isNaN(v)) return alert('请输入分数');
@@ -1066,10 +1664,32 @@ async function doAudit(id, action) {
 }
 
 // ── 首次上传 ──
-function showCreate() { openModal('createModal'); }
+function showCreate() {
+  // 每次打开重置区域选择，避免沿用上一次的残留值
+  const big = document.getElementById('cBigRegion');
+  const sub = document.getElementById('cSubRegion');
+  if (big) big.value = '';
+  if (sub) sub.innerHTML = '<option value="">选择区域</option>';
+  openModal('createModal');
+}
+function onCreateBigChange() {
+  const big = document.getElementById('cBigRegion').value;
+  const sub = document.getElementById('cSubRegion');
+  sub.innerHTML = '<option value="">选择区域</option>';
+  (REGION_TREE[big] || []).forEach(s => {
+    const o = document.createElement('option');
+    // 与上传页同格式：「大区 / 小区」，斜杠两侧带空格
+    o.value = big + ' / ' + s;
+    o.textContent = s;
+    sub.appendChild(o);
+  });
+}
 async function doCreate() {
   const extra = {matrix_amplify: document.getElementById('cMatrix').checked, cross_region: document.getElementById('cCross').checked, result_oriented: document.getElementById('cResult').checked};
-  const body = {track: document.getElementById('cTrack').value, title: document.getElementById('cTitle').value, url: document.getElementById('cUrl').value, creator_name: document.getElementById('cCreator').value, region: document.getElementById('cRegion').value, extra_flags: extra};
+  const bigRegion = document.getElementById('cBigRegion').value;
+  // 只选了大区也能建档（榜单里按大区归类）；选了小区就用「大区 / 小区」
+  const region = document.getElementById('cSubRegion').value || bigRegion || '';
+  const body = {track: document.getElementById('cTrack').value, title: document.getElementById('cTitle').value, url: document.getElementById('cUrl').value, creator_name: document.getElementById('cCreator').value, region, extra_flags: extra};
   const r = await api('/api/campaign/works', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   closeModal('createModal'); alert('建档成功，一稿一码：' + r.code); await refreshAll();
 }
@@ -1087,15 +1707,38 @@ async function submitByCode() {
 }
 
 // ── T+7 提交 ──
-function showSubmit(id) {
+async function showSubmit(id) {
   curWorkId = id;
   document.getElementById('submitMsg').textContent = '';
+  submitCount = null;
+  try {
+    const detail = await api('/api/campaign/works/' + id);
+    submitCount = Number(detail.submit_count) || 0;
+    const remaining = Number.isFinite(Number(detail.remaining_submissions)) ? Number(detail.remaining_submissions) : Math.max(0, 3 - submitCount);
+    const quota = document.getElementById('submitQuota');
+    const button = document.getElementById('submitT7Btn');
+    if (quota) quota.textContent = remaining > 0 ? `还可回传 ${remaining} 次（已回传 ${submitCount}/3）` : '已回传 3/3 次，不能继续提交';
+    if (button) { button.disabled = remaining <= 0; button.style.display = remaining <= 0 ? 'none' : ''; }
+    if (remaining <= 0) { openModal('submitModal'); return; }
+  } catch (e) {
+    document.getElementById('submitQuota').textContent = '提交次数读取失败，请刷新后重试';
+  }
   uploadedScreenshots = [];
   uploadedProofs = [];
   document.getElementById('sScreenshotFile').value = '';
   document.getElementById('sProofFile').value = '';
   renderThumbs(uploadedScreenshots, 'screenshot');
   renderThumbs(uploadedProofs, 'business');
+  // 清空上一次填的数值：否则连续处理两个作品时，旧值会残留在表单里被误提交
+  ['sPlays', 'sR3', 'sComp', 'sDeep', 'sLike', 'sShare'].forEach(fid => {
+    const el = document.getElementById(fid);
+    if (el) el.value = '';
+  });
+  document.getElementById('sOriginal').checked = true;
+  // 作品链接：已登记过合法链接就带出来（历史数据里混进过 COS key，只认 http）
+  const w = (cacheWorks || []).find(x => x.id === id);
+  const prevUrl = (w && w.url) || '';
+  document.getElementById('sUrl').value = /^https?:\/\//i.test(prevUrl.trim()) ? prevUrl.trim() : '';
   openModal('submitModal');
 }
 
@@ -1104,21 +1747,33 @@ function onCredFiles(input, type) {
   const list = type === 'screenshot' ? uploadedScreenshots : uploadedProofs;
   uploadCredFiles(input, type, list);
 }
+// 当前正在处理的作品码：上传材料时带给后端，用于按 campaign/{作品码}/… 归档
+function curWorkCode() {
+  const w = (cacheWorks || []).find(x => x.id === curWorkId);
+  return (w && w.code) || '';
+}
 async function uploadCredFiles(input, type, list) {
   const files = Array.from(input.files || []);
-  for (const f of files) {
-    const fd = new FormData();
-    fd.append('type', type);
-    fd.append('file', f);
-    try {
-      const r = await api('/api/campaign/credentials/upload', {method:'POST', body: fd});
-      (r.files || []).forEach(item => list.push(item));
-    } catch(e) {
-      alert('图片上传失败：' + e.message);
+  // 计数上传中的图片：doSubmit 据此区分"必填项没传"和"还在传"
+  credUploading++;
+  try {
+    for (const f of files) {
+      const fd = new FormData();
+      fd.append('type', type);
+      if (curWorkCode()) fd.append('code', curWorkCode());
+      fd.append('file', f);
+      try {
+        const r = await api('/api/campaign/credentials/upload', {method:'POST', body: fd});
+        (r.files || []).forEach(item => list.push(item));
+      } catch(e) {
+        alert('图片上传失败：' + e.message);
+      }
     }
+    input.value = '';
+    renderThumbs(list, type);
+  } finally {
+    credUploading--;
   }
-  input.value = '';
-  renderThumbs(list, type);
 }
 function renderThumbs(list, type) {
   const id = type === 'screenshot' ? 'sScreenshotList' : 'sProofList';
@@ -1133,24 +1788,233 @@ function removeThumb(type, i) {
 }
 
 async function doSubmit() {
+  if (submitCount !== null && submitCount >= 3) return alert('该作品已回传 3 次，不能继续提交');
+  // 「后台数据截图」是六项数字的来源凭证，必传（后端也会校验，这里先拦一道）；
+  // 「有效线索回传」选填，传了可在有效线索库里人工追加战功
+  if (credUploading > 0) return alert('图片还在上传中，请稍候再提交');
+  if (!uploadedScreenshots.length) return alert('请上传「后台数据截图」后再提交');
+  // 六项留空一律传 null，绝不 `||0`：AI 识别读不出来的项本来就是 null，
+  // 用 0 顶替会把它落成「真的是 0」，后台和榜单上就成了假数据。
+  const numOrNull = (id, isInt) => {
+    const raw = (document.getElementById(id).value || '').trim();
+    if (!raw) return null;
+    const n = isInt ? parseInt(raw, 10) : parseFloat(raw);
+    return Number.isNaN(n) ? null : n;
+  };
+  const plays = numOrNull('sPlays', true);
+  const r3 = numOrNull('sR3', false);
+  const comp = numOrNull('sComp', false);
+  const deep = numOrNull('sDeep', true);
+  const like = numOrNull('sLike', true);
+  const share = numOrNull('sShare', true);
+  const pairs = [['播放量', plays], ['3秒留存率', r3], ['完播率', comp],
+                 ['评论', deep], ['爱心', like], ['转发', share]];
+  const missing = pairs.filter(pair => pair[1] === null).map(pair => pair[0]);
+  if (missing.length && !confirm(`「${missing.join('、')}」还是空的，确认按空值提交吗？\n建议对照截图把这几项手工补齐，否则本作品不计分。`)) return;
+  // 只要六项里有哪项填了 0 就提醒核对一次：0 会照常参与评分，填错会拉低总分
+  const zeros = pairs.filter(pair => pair[1] === 0).map(pair => pair[0]);
+  if (zeros.length && !confirm(`「${zeros.join('、')}」填的是 0，请对照截图确认确实是 0。\n0 会照常计入评分，填错会拉低总分，确认提交吗？`)) return;
   const body = {
-    plays: parseInt(document.getElementById('sPlays').value)||0,
-    retention_3s: parseFloat(document.getElementById('sR3').value)||0,
-    completion_rate: parseFloat(document.getElementById('sComp').value)||0,
-    deep_interaction_rate: parseFloat(document.getElementById('sDeep').value)||0,
-    like_rate: parseFloat(document.getElementById('sLike').value)||0,
+    plays: plays,
+    retention_3s: r3,
+    completion_rate: comp,
+    comment_count: deep,
+    like_count: like,
+    share_count: share,
     original: document.getElementById('sOriginal').checked,
-    screenshot: uploadedScreenshots.map(x => ({file: x.cos_key, url: x.url})),
-    business_proof: uploadedProofs.map(x => ({file: x.cos_key, url: x.url})),
+    url: (document.getElementById('sUrl').value || '').trim(),
+    // 只存 COS key：url 是 2 小时过期的预签名地址，存进库第二天就是死链，
+    // 读取时后端会用 file 重新签名（见 _hist_files）。
+    screenshot: uploadedScreenshots.map(x => ({file: x.cos_key})),
+    business_proof: uploadedProofs.map(x => ({file: x.cos_key})),
   };
   document.getElementById('submitMsg').textContent = '打分中…';
-  const r = await api('/api/campaign/works/'+curWorkId+'/submit', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  let r;
+  try {
+    r = await api('/api/campaign/works/'+curWorkId+'/submit', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  } catch (e) {
+    // 必填材料缺失等后端校验失败：给出提示，否则界面会一直停在"打分中…"
+    document.getElementById('submitMsg').textContent = '提交失败：' + e.message;
+    return;
+  }
   if (r.qualified) document.getElementById('submitMsg').innerHTML = `已计分：总分 <b style="color:var(--gold)">${r.score.total_score}</b> · 等级 <b>${r.score.grade}</b> · 战功 <b style="color:var(--gold)">${r.score.total_merit}</b>`;
   else document.getElementById('submitMsg').innerHTML = `未达参评门槛：${r.reject_reasons.join('；')}`;
   closeModal('submitModal'); await refreshAll();
 }
 
-// ── 导出 ──
+// ── 参评门槛设置（管理员）──
+async function showThresholdCfg() {
+  const cfg = await api('/api/campaign/threshold-config');
+  document.getElementById('thresholdPlays').value = cfg.play_threshold ?? 0;
+  document.getElementById('thresholdDays').value = cfg.min_days ?? 0;
+  document.getElementById('thresholdCfgMsg').textContent = '';
+  openModal('thresholdCfgModal');
+}
+
+async function saveThresholdCfg() {
+  const msg = document.getElementById('thresholdCfgMsg');
+  const plays = Number(document.getElementById('thresholdPlays').value);
+  const days = Number(document.getElementById('thresholdDays').value);
+  if (!Number.isInteger(plays) || plays < 0 || !Number.isInteger(days) || days < 0) {
+    msg.style.color = '#dc2626'; msg.textContent = '请输入非负整数'; return;
+  }
+  msg.style.color = ''; msg.textContent = '保存中…';
+  try {
+    const cfg = await api('/api/campaign/threshold-config', {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({play_threshold: plays, min_days: days}),
+    });
+    msg.style.color = '#16a34a';
+    msg.textContent = `已保存：播放量 ${cfg.play_threshold}，发布 ${cfg.min_days} 天`;
+  } catch (e) {
+    msg.style.color = '#dc2626'; msg.textContent = '保存失败：' + e.message;
+  }
+}
+
+// ── 评分标准设置（各指标档位可在后台手动调整）──
+async function showScoreCfg() {
+  document.getElementById('scoreCfgMsg').textContent = '';
+  document.getElementById('scoreCfgBody').innerHTML = '<div class="hint">加载中…</div>';
+  openModal('scoreCfgModal');
+  await loadScoreCfg();
+  renderScoreCfg();
+}
+
+function renderScoreCfg() {
+  const groups = {};
+  (scoreCfg.metrics || []).forEach(m => { (groups[m.group] = groups[m.group] || []).push(m); });
+  // 指标满分合计 + 内容表现固定 40 分 = 总分满分，超出 100 会破坏 S/A/B 等级线
+  const metricTotal = (scoreCfg.metrics || []).reduce((s, m) => s + (metricMax(m.key) || 0), 0);
+  const grandTotal = metricTotal + 40;
+  const over = grandTotal > 100;
+  // 等级线同样来自后台配置（可改），这里不再写死 90/70/50
+  const gradeBands = scoreCfg.grades || [['S', 90], ['A', 70], ['B', 50]];
+  const gradeMerit = scoreCfg.grade_merit || {};
+  const gradeLines = gradeBands.map(g => `${g[0]}≥${g[1]}`).join(' / ');
+  const gradeMin = Math.min(...gradeBands.map(g => Number(g[1])));
+
+  let html = `<div class="ss-box" style="margin-bottom:12px">
+    <div class="ss-title">等级分数线 & 各级基础战功</div>
+    <div id="gradeCfgBody">
+      ${gradeBands.map(g => gradeRowHtml(g[0], g[1], gradeMerit[g[0]] ?? 0)).join('')}
+      <div class="hint" style="margin-top:4px">总分低于 <b>${isFinite(gradeMin) ? gradeMin : 0}</b> 分记为「待优化」，不计基础战功；附加战功与人工追加的战功另算。</div>
+    </div>
+  </div>
+  <div class="ss-box" style="margin-bottom:12px">
+    <div class="ss-title">当前满分合计</div>
+    <div class="ss-line">指标档位合计 <b>${metricTotal}</b> + 内容表现 <b>40</b> = <b style="color:${over ? '#dc2626' : '#16a34a'}">${grandTotal}</b> 分
+      ${over ? `<span style="color:#dc2626">　⚠️ 超过 100 分，等级线（${esc(gradeLines)}）会失真，建议下调各档分值</span>` : ''}</div>
+  </div>`;
+  for (const group of Object.keys(groups)) {
+    const ms = groups[group];
+    const total = ms.reduce((s, m) => s + (metricMax(m.key) || 0), 0);
+    html += `<div class="ss-box" style="margin-bottom:12px"><div class="ss-title">${esc(group)} · 合计 ${total} 分</div>`;
+    for (const m of ms) {
+      html += `<div style="margin:10px 0">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px">${esc(m.label)}
+          <span class="hint">满分 ${metricMax(m.key) ?? '-'} · 达标线单位 ${esc(m.unit)}</span></div>
+        <div data-metric="${m.key}">` +
+        (m.bands || []).map(b => scoreBandRowHtml(b[0], b[1])).join('') +
+        `<button class="btn sm" onclick="addScoreBand('${m.key}')">＋ 加一档</button>
+        </div></div>`;
+    }
+    html += '</div>';
+  }
+  document.getElementById('scoreCfgBody').innerHTML = html || '<div class="hint">暂无指标</div>';
+}
+
+// 等级一行：等级名（固定）→ 分数线 → 该等级的基础战功
+function gradeRowHtml(name, threshold, merit) {
+  return `<div class="sc-band sc-grade" data-grade="${esc(name)}" style="display:flex;gap:6px;margin-bottom:4px;align-items:center;flex-wrap:wrap">
+    <span style="width:52px;font-weight:700">${esc(name)} 级</span>
+    <span class="hint">总分 ≥</span>
+    <input type="number" step="1" class="sc-gthr" value="${threshold ?? ''}" placeholder="分数线" style="width:100px">
+    <span class="hint">分 → 基础战功</span>
+    <input type="number" step="1" class="sc-gmerit" value="${merit ?? 0}" placeholder="战功" style="width:100px">
+    <span class="hint">分</span>
+  </div>`;
+}
+
+function scoreBandRowHtml(threshold, score) {
+  return `<div class="sc-band" style="display:flex;gap:6px;margin-bottom:4px;align-items:center">
+    <input type="number" step="0.1" class="sc-thr" value="${threshold ?? ''}" placeholder="达标线" style="width:110px">
+    <span class="hint">→</span>
+    <input type="number" class="sc-score" value="${score ?? ''}" placeholder="得分" style="width:110px">
+    <button class="btn sm danger" onclick="this.parentNode.remove()">删</button>
+  </div>`;
+}
+
+function addScoreBand(key) {
+  const wrap = document.querySelector('#scoreCfgBody [data-metric="' + key + '"]');
+  if (!wrap) return;
+  const holder = document.createElement("div");
+  holder.innerHTML = scoreBandRowHtml('', '');
+  wrap.insertBefore(holder.firstElementChild, wrap.querySelector('button'));
+}
+
+function collectScoreCfg() {
+  const out = {};
+  document.querySelectorAll('#scoreCfgBody [data-metric]').forEach(wrap => {
+    const key = wrap.getAttribute('data-metric');
+    const bands = [];
+    wrap.querySelectorAll('.sc-band').forEach(row => {
+      const t = (row.querySelector('.sc-thr').value || '').trim();
+      const s = (row.querySelector('.sc-score').value || '').trim();
+      if (t === '' || s === '') return;
+      bands.push([parseFloat(t), parseFloat(s)]);
+    });
+    out[key] = bands;
+  });
+  return out;
+}
+
+async function saveScoreCfg() {
+  const msg = document.getElementById('scoreCfgMsg');
+  const body = collectScoreCfg();
+  const g = collectGradeCfg();
+  // 等级线必须 S > A > B，否则后端会拒；这里先给一句人能看懂的话
+  const bad = g.grades.find((x, i) => i > 0 && Number(x[1]) >= Number(g.grades[i - 1][1]));
+  if (bad) {
+    msg.style.color = '#dc2626';
+    msg.textContent = '等级分数线必须依次递减：S > A > B';
+    return;
+  }
+  body.grades = g.grades;
+  body.grade_merit = g.gradeMerit;
+  msg.textContent = '保存中…';
+  msg.style.color = '';
+  try {
+    await api('/api/campaign/score-config', {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    msg.style.color = '#dc2626';
+    msg.textContent = '保存失败：' + e.message;
+    return;
+  }
+  await loadScoreCfg();
+  renderScoreCfg();
+  msg.style.color = '#16a34a';
+  msg.textContent = '已保存。此后新回传的 T+7 打分按新标准计算。';
+}
+
+// 读等级块：S/A/B 的分数线与各级基础战功
+function collectGradeCfg() {
+  const grades = [], gradeMerit = {};
+  document.querySelectorAll('#gradeCfgBody .sc-grade').forEach(row => {
+    const name = row.getAttribute('data-grade');
+    const t = (row.querySelector('.sc-gthr').value || '').trim();
+    const m = (row.querySelector('.sc-gmerit').value || '').trim();
+    if (t === '') return;
+    grades.push([name, parseFloat(t)]);
+    gradeMerit[name] = m === '' ? 0 : Math.max(0, parseInt(m, 10) || 0);
+  });
+  gradeMerit['待优化'] = 0;
+  return { grades, gradeMerit };
+}
+
+// ── 导出（双百战役报表）──
 function exportCSV() {
   const p = new URLSearchParams();
   if (document.getElementById('fTrack').value) p.set('track', document.getElementById('fTrack').value);
@@ -1182,8 +2046,113 @@ async function delTrack(id) {
 }
 async function refreshTracksSelects() {
   const t = await api('/api/campaign/tracks');
+  window.__tracks = t.tracks.map(x => x.name);
   document.getElementById('fTrack').innerHTML = '<option value="">全部赛道</option>' + t.tracks.map(x=>`<option>${x.name}</option>`).join('');
   document.getElementById('cTrack').innerHTML = t.tracks.map(x=>`<option value="${x.name}">${x.name}</option>`).join('');
+}
+
+// ── 调整赛道 / 移出战役 / 从未参战提交补建档 ──
+
+function _trackOptionsHtml(sel) {
+  return (window.__tracks || []).map(t =>
+    `<option value="${esc(t)}"${t === sel ? ' selected' : ''}>${esc(t)}</option>`).join('');
+}
+
+let _teWorkId = null;
+function editWorkTrack(id) {
+  const w = cacheWorks.find(x => x.id === id);
+  if (!w) return;
+  _teWorkId = id;
+  document.getElementById('teWorkInfo').innerHTML =
+    `作品 <code>${esc(w.code)}</code> ${esc((w.title || '').slice(0, 24))}<br>当前赛道：<b>${esc(w.track || '(未设置)')}</b>`;
+  document.getElementById('teTrack').innerHTML = _trackOptionsHtml(w.track);
+  openModal('trackEditModal');
+}
+
+async function saveWorkTrack() {
+  if (!_teWorkId) return;
+  const track = document.getElementById('teTrack').value;
+  try {
+    await api(`/api/campaign/works/${_teWorkId}/track`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({track}),
+    });
+    closeModal('trackEditModal');
+    await refreshAll();
+  } catch (e) { alert('调整失败：' + e.message); }
+}
+
+async function toggleWorkExclude(id, excluded) {
+  const w = cacheWorks.find(x => x.id === id);
+  const code = w ? w.code : ('#' + id);
+  const tip = excluded
+    ? `确定把作品 ${code} 移出双百战役？\n\n移出后不计分、不上榜，可随时点「恢复参战」还原。`
+    : `确定把作品 ${code} 恢复参战？\n\n将还原为移出前的状态。`;
+  if (!confirm(tip)) return;
+  try {
+    await api(`/api/campaign/works/${id}/exclude`, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({excluded: excluded}),
+    });
+    await refreshAll();
+  } catch (e) { alert('操作失败：' + e.message); }
+}
+
+let _asSubItems = [];
+function _asCheckedIds() {
+  return Array.from(document.querySelectorAll('#asSubList input[type=checkbox]:checked')).map(x => x.value);
+}
+function _asCountUpdate() {
+  const el = document.getElementById('asCount');
+  if (el) el.textContent = `已选 ${_asCheckedIds().length} / ${_asSubItems.length} 条`;
+}
+function toggleAllAsSub(on) {
+  document.querySelectorAll('#asSubList input[type=checkbox]').forEach(x => { x.checked = on; });
+  _asCountUpdate();
+}
+
+async function showAddFromSub() {
+  const list = document.getElementById('asSubList');
+  const msg = document.getElementById('asMsg');
+  if (!list || !msg) return;
+  list.innerHTML = '';
+  // 赛道下拉：「由 AI 逐条识别」放最前（默认），其余为具体赛道
+  document.getElementById('asTrack').innerHTML =
+    '<option value="">🤖 由 AI 逐条识别后建档（较慢）</option>' + _trackOptionsHtml('');
+  msg.textContent = '加载中…';
+  openModal('addFromSubModal');
+  try {
+    const data = await api('/api/submissions?campaign=no&page_size=200') || {};
+    _asSubItems = data.items || [];
+    if (!_asSubItems.length) { msg.textContent = '没有未参战的上传内容。'; return; }
+    list.innerHTML = _asSubItems.map(s => `
+      <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:6px 4px;border-bottom:1px dashed var(--border)">
+        <input type="checkbox" value="${s.id}" ${s.status === 'approved' ? 'checked' : ''} onchange="_asCountUpdate()" style="margin-top:2px">
+        <span>#${s.id} <b>${esc((s.title || s.caption || '(无标题)').slice(0, 28))}</b>
+          <span style="color:var(--text-muted)"> · ${esc(s.display_name || '')} · ${esc(s.region || '')} · ${esc(STATUS_TXT[s.status] || s.status || '')}</span></span>
+      </label>`).join('');
+    _asCountUpdate();
+    msg.textContent = `共 ${_asSubItems.length} 条未参战内容（默认勾选审核通过的）`;
+  } catch (e) { msg.textContent = '加载失败：' + e.message; }
+}
+
+async function doAddFromSub() {
+  const ids = _asCheckedIds();
+  const track = document.getElementById('asTrack').value;
+  const msg = document.getElementById('asMsg');
+  if (!ids.length) { msg.textContent = '请先勾选要补建档的内容'; return; }
+  msg.textContent = '处理中…';
+  try {
+    const r = await api('/api/submissions/backfill-campaign', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ ids, track }),
+    });
+    msg.innerHTML = track
+      ? `✅ 已建档 ${r.archived} 条，跳过 ${r.skipped} 条`
+      : `✅ 已提交 ${r.queued} 条 AI 识别任务，识别完自动建档（跳过 ${r.skipped} 条）<br>
+         <span style="color:var(--text-muted)">识别较慢，可关闭弹窗；作品会陆续出现在作品库，稍后刷新查看。</span>`;
+    await refreshAll();
+  } catch (e) { msg.textContent = '补建档失败：' + e.message; }
 }
 
 init();
